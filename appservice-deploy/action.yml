@@ -1,0 +1,58 @@
+name: Deploy container App Service
+
+inputs:
+  tenant-id:
+    required: true
+    description: Azure Tenant ID
+    type: string
+  subscription-id:
+    required: true
+    description: Azure Subscription ID
+    type: string
+  client-id:
+    required: true
+    description: Azure Client ID
+    type: string
+  app-name:
+    required: true
+    description: Name of the Function App
+    type: string
+  resource-group-name:
+    required: true
+    description: Name of the Resource Group of the Function App
+    type: string
+  image:
+    required: true
+    description: Full name of the image to deploy, e.g. https://ghcr.io/myorg/myrepo:v0.1.0
+  staging-slot-name:
+    required: false
+    description: Name of the staging slot
+    type: string
+    default: staging
+
+runs:
+  using: composite
+  steps:
+    - name: Azure Login
+      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+      with:
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+        client-id: ${{ inputs.client-id }}
+  
+    - name: Deploy to Staging Slot
+      uses: azure/webapps-deploy@de617f46172a906d0617bb0e50d81e9e3aec24c8 # v3.0.1
+      with:
+        resource-group-name: ${{ inputs.resource-group-name }}
+        app-name: ${{ inputs.app-name }}
+        images: ${{ inputs.images }}
+        slot-name: ${{ inputs.staging-slot-name }}
+  
+    - name: Swap Staging and Production Slots
+      shell: bash
+      run: |
+        az webapp deployment slot swap \
+          -g ${{ inputs.resource-group-name }} \
+          -n ${{ inputs.app-name }} \
+          --slot ${{ inputs.staging-slot-name }} \
+          --target-slot production
