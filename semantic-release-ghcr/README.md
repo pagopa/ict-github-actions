@@ -5,6 +5,11 @@ the version and the changelog are calculated based on commit messages.
 It also builds a Docker image and publishes it to the GitHub container
 registry.
 
+## Prerequisites
+
+- Commit message semantic convention
+- Dockerfile in the repo
+
 ## Usage
 
 ```yml

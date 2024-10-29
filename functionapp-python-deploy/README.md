@@ -6,6 +6,13 @@ This action deploys a Python package to a Azure Function App .
 > Always use this action in an environment with branch
 > protection setup to avoid secret leaks!
 
+## Prerequisites
+
+- Azure Function App with Python runtime
+- Managed identity (specify it with the `client-id` input with `Contributor` role on the app
+- Federated credential for trusting GitHub issued OIDC tokens from the selected environment in the managed identity
+- Function app package code in the repo
+
 ## Usage
 
 ```yml

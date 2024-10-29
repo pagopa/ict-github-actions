@@ -2,10 +2,20 @@
 
 This action deploys a container image to an Azure App Service
 performing a blue-green deployment with staging slot.
-    
+
+Login from GitHub to Azure is performed with managed identity and
+federated credential with OpenID Connect.
+
 > [!NOTE]
 > Always use this action in an environment with branch
 > protection setup to avoid secret leaks!
+
+## Prerequisites
+
+- Azure Linux Web App with container runtime
+- A non-production slot in the app (default name is `staging`)
+- Managed identity (specify it with the `client-id` input with `Contributor` role on the app
+- Federated credential for trusting GitHub issued OIDC tokens from the selected environment in the managed identity
 
 ## Usage
 
