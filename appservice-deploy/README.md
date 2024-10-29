@@ -3,6 +3,9 @@
 This action deploys a container image to an Azure App Service
 performing a blue-green deployment with staging slot.
 
+This can be disabled (only for DEV environments!) for deploying
+directly to prod slot.
+
 Login from GitHub to Azure is performed with managed identity and
 federated credential with OpenID Connect.
 

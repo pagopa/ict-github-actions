@@ -1,3 +1,8 @@
+# This action deploys a container image to an Azure App Service
+# performing a blue-green deployment with staging slot.  Login from
+# GitHub to Azure is performed with managed identity and federated
+# credential with OpenID Connect.
+
 name: Deploy container App Service
 
 inputs:
@@ -24,6 +29,11 @@ inputs:
   image:
     required: true
     description: Full name of the image to deploy, e.g. https://ghcr.io/myorg/myrepo:v0.1.0
+    type: string
+  direct-deploy-to-prod:
+    required: false
+    description: If true, deploy directly to prod instead of blue-green with staging slot
+    default: false
   staging-slot-name:
     required: false
     description: Name of the staging slot
@@ -40,8 +50,17 @@ runs:
         subscription-id: ${{ inputs.subscription-id }}
         client-id: ${{ inputs.client-id }}
   
+    - name: Deploy
+      uses: azure/webapps-deploy@de617f46172a906d0617bb0e50d81e9e3aec24c8 # v3.0.1
+      if: inputs.direct-deploy-to-prod == 'true'
+      with:
+        resource-group-name: ${{ inputs.resource-group-name }}
+        app-name: ${{ inputs.app-name }}
+        images: ${{ inputs.images }}
+
     - name: Deploy to Staging Slot
       uses: azure/webapps-deploy@de617f46172a906d0617bb0e50d81e9e3aec24c8 # v3.0.1
+      if: inputs.direct-deploy-to-prod != 'true'
       with:
         resource-group-name: ${{ inputs.resource-group-name }}
         app-name: ${{ inputs.app-name }}
@@ -50,6 +69,7 @@ runs:
   
     - name: Swap Staging and Production Slots
       shell: bash
+      if: inputs.direct-deploy-to-prod != 'true'
       run: |
         az webapp deployment slot swap \
           -g ${{ inputs.resource-group-name }} \
