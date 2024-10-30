@@ -1,6 +1,7 @@
 # This action deploys a Python package to a Azure Function App .
 
 name: Deploy Python Function App
+description: Deploy a Python package to Azure Function App
 
 inputs:
   python-version-file:
