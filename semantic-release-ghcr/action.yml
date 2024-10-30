@@ -7,6 +7,9 @@ name: Semantic release on GHCR
 description: Semantic release publishing GitHub Release and Docker image in GitHub packages
 
 inputs:
+  github-token:
+    required: true
+    description: GitHub token, use secrets.GITHUB_TOKEN or a custom PAT. Permissions needed are write contents, issues and packages
   context:
     required: false
     description: Docker context path
@@ -42,7 +45,7 @@ runs:
         extra_plugins: |
           @semantic-release/release-notes-generator@14.0.1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
@@ -54,7 +57,7 @@ runs:
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ inputs.github-token }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
