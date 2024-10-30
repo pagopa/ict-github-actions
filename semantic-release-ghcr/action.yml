@@ -3,7 +3,8 @@
 # messages.  It also builds a Docker image and publishes it to the
 # GitHub container registry.
 
-name: Semantic release on GitHub container registry
+name: Semantic release on GHCR
+description: Semantic release publishing GitHub Release and Docker image in GitHub packages
 
 inputs:
   context:
