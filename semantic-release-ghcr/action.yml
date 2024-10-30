@@ -24,7 +24,7 @@ outputs:
     description: Whether a new release was published or not
     value: ${{ steps.release.outputs.new_release_published }}
   new-release-version: ${{ steps.release.outputs.new_release_version }}
-    description: Version of the new release published (if any)
+    description: Version of the new release published, if any
     value: ${{ steps.release.outputs.new_release_published }}
   new-release-image:
     description: Docker image published
