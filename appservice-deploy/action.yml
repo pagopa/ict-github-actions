@@ -4,6 +4,7 @@
 # credential with OpenID Connect.
 
 name: Deploy container App Service
+description: Deploy a container image to Azure Linux App Service with container runtime
 
 inputs:
   tenant-id:

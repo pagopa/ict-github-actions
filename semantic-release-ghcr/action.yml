@@ -3,7 +3,8 @@
 # messages.  It also builds a Docker image and publishes it to the
 # GitHub container registry.
 
-name: Semantic release on GitHub container registry
+name: Semantic release on GHCR
+description: Semantic release publishing GitHub Release and Docker image in GitHub packages
 
 inputs:
   context:
@@ -23,8 +24,8 @@ outputs:
   new-release-published:
     description: Whether a new release was published or not
     value: ${{ steps.release.outputs.new_release_published }}
-  new-release-version: ${{ steps.release.outputs.new_release_version }}
-    description: Version of the new release published (if any)
+  new-release-version:
+    description: Version of the new release published, if any
     value: ${{ steps.release.outputs.new_release_published }}
   new-release-image:
     description: Docker image published
