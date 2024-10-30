@@ -29,7 +29,7 @@ outputs:
     value: ${{ steps.release.outputs.new_release_published }}
   new-release-version:
     description: Version of the new release published, if any
-    value: ${{ steps.release.outputs.new_release_published }}
+    value: ${{ steps.release.outputs.new_release_version }}
   new-release-image:
     description: Docker image published
     value: "ghcr.io/${{ github.repository }}${{ inputs.image-suffix }}:${{ steps.release.outputs.new_release_version }}"
