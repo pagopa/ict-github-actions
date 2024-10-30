@@ -6,27 +6,21 @@ inputs:
   python-version-file:
     required: true
     description: Path of the Python version file
-    type: string
   tenant-id:
     required: true
     description: Azure Tenant ID
-    type: string
   subscription-id:
     required: true
     description: Azure Subscription ID
-    type: string
   client-id:
     required: true
     description: Azure Client ID
-    type: string
   app-name:
     required: true
     description: Name of the Function App
-    type: string
   package-location:
     required: false
     description: Path of the package to publish
-    type: string
     default: '.'
 
 runs:

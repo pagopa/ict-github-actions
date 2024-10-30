@@ -9,35 +9,28 @@ inputs:
   tenant-id:
     required: true
     description: Azure Tenant ID
-    type: string
   subscription-id:
     required: true
     description: Azure Subscription ID
-    type: string
   client-id:
     required: true
     description: Azure Client ID
-    type: string
   app-name:
     required: true
     description: Name of the Function App
-    type: string
   resource-group-name:
     required: true
     description: Name of the Resource Group of the Function App
-    type: string
   image:
     required: true
     description: Full name of the image to deploy, e.g. https://ghcr.io/myorg/myrepo:v0.1.0
-    type: string
   direct-deploy-to-prod:
     required: false
     description: If true, deploy directly to prod instead of blue-green with staging slot
-    default: false
+    default: 'false'
   staging-slot-name:
     required: false
     description: Name of the staging slot
-    type: string
     default: staging
 
 runs:

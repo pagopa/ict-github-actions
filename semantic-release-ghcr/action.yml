@@ -9,17 +9,14 @@ inputs:
   context:
     required: false
     description: Docker context path
-    type: string
     default: '.'
   dockerfile:
     required: false
     description: Dockerfile path
-    type: string
     default: 'Dockerfile'
   image-suffix:
     required: false
     description: Suffix of the image name after repository name, e.g. ghcr.io/myorg/myrepo</this/is/the/suffix>. Include a starting / please!
-    type: string
     default: ''
   
 outputs:
@@ -31,7 +28,7 @@ outputs:
     value: ${{ steps.release.outputs.new_release_published }}
   new-release-image:
     description: Docker image published
-    value: ghcr.io/${{ github.repository }}${{ inputs.image-suffix }}:${{ steps.release.outputs.new_release_version }}
+    value: "ghcr.io/${{ github.repository }}${{ inputs.image-suffix }}:${{ steps.release.outputs.new_release_version }}"
 
 runs:
   using: composite
