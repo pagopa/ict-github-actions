@@ -1,0 +1,63 @@
+name: Terraform plan
+description: "Terraform plan on Azure"
+
+inputs:
+  tenant-id:
+    required: true
+    description: Azure Tenant ID
+  subscription-id:
+    required: true
+    description: Azure Subscription ID
+  client-id:
+    required: true
+    description: Azure Client ID
+  terraform-env:
+    required: true
+    description: Terraform environment like in env/ folder
+  terraform-root:
+    required: false
+    description: Path of the folder where the root terraform module is found
+    default: .
+  terraform-version-file:
+    required: false
+    description: Path of the Terraform version file
+    default: .terraform-version
+  azure-skip-login:
+    required: false
+    description: Set to 'true' to skip login, maybe because it's performed externally
+    default: 'false'
+
+runs:
+  using: composite
+
+  steps:
+    - name: Azure Login
+      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+      if: inputs.azure-skip-login != 'true'
+      with:
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+        client-id: ${{ inputs.client-id }}
+
+    - name: Read terraform version
+      id: tf-version
+      shell: bash
+      run: |
+        echo "terraform-version=`cat ${{ inputs.terraform-version-file }}`" >> $GITHUB_OUTPUT
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+      with:
+        terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
+
+    - name: Plan
+      shell: bash
+      run: |
+        export ARM_CLIENT_ID="${{ inputs.client-id }}"
+        export ARM_TENANT_ID="${{ inputs.tenant-id }}"
+        export ARM_SUBSCRIPTION_ID="${{ inputs.subscription-id }}"
+        export ARM_USE_OIDC=true
+
+        cd "${{ inputs.terraform-root }}"
+
+        ./terraform.sh plan ${{ inputs.terraform-env }} -lock=false
