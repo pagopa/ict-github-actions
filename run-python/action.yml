@@ -39,4 +39,4 @@ runs:
     - name: Run Python script
       shell: bash
       run: |
-        python ${{ inputs.context }}/${{ inputs.command }} ${{ inputs.args }}
+        python ${{ inputs.context }}/${{ inputs.command }} ${{ inputs.command-args }}
