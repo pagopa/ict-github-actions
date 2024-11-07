@@ -38,6 +38,5 @@ runs:
   
     - name: Run Python script
       shell: bash
-      working-directory: ${{ inputs.context }}
       run: |
-        python ${{ inputs.command }} ${{ inputs.args }}
+        python ${{ input.context }}/${{ inputs.command }} ${{ inputs.args }}
