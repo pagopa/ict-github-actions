@@ -19,7 +19,7 @@ inputs:
   app-name:
     required: true
     description: Name of the Function App
-  package-location:
+  package:
     required: false
     description: Path of the package to publish
     default: '.'
@@ -43,7 +43,7 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      working-directory: ${{ inputs.package-location }}
+      working-directory: ${{ inputs.package }}
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt --target=".python_packages/lib/site-packages"
