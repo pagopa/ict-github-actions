@@ -30,6 +30,11 @@ inputs:
 runs:
   using: composite
 
+  outputs:
+    terraform-version: ${{ steps.tf-version.outputs.terraform-version }}
+    plan-artifact-name: ${{ steps.artifact.outputs.name }}
+    plan-artifact-file: ${{ steps.artifact.outputs.file }}
+
   steps:
     - name: Azure Login
       uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
@@ -52,13 +57,33 @@ runs:
 
     - name: Plan
       shell: bash
+      working-directory: ${{ inputs.terraform-root }}
+      env:
+        ARM_CLIENT_ID: ${{ inputs.client-id }}
+        ARM_TENANT_ID: ${{ inputs.tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
+        ARM_USE_OIDC: "true"
+        ARM_USE_AZUREAD: "true"
       run: |
-        export ARM_CLIENT_ID="${{ inputs.client-id }}"
-        export ARM_TENANT_ID="${{ inputs.tenant-id }}"
-        export ARM_SUBSCRIPTION_ID="${{ inputs.subscription-id }}"
-        export ARM_USE_OIDC=true
-        export ARM_USE_AZUREAD=true
+        ./terraform.sh plan ${{ inputs.terraform-env }} \
+            -lock=false \
+            -out=tfplan-${{ github.sha }} \
+            -input=false \
+            | grep -v "hidden-link:"
 
-        cd "${{ inputs.terraform-root }}"
+    - name: Upload plan artifact
+      uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
+      with:
+        name: tfplan
+        path: ${{ steps.directory.outputs.dir }}/tfplan-${{ github.sha }}
+        if-no-files-found: error
+        retention-days: 7
 
-        ./terraform.sh plan ${{ inputs.terraform-env }} -lock=false
+    - name: Plan artifact output
+      id: artifact
+      shell: bash
+      run: |
+        echo "name=tfplan" >> $GITHUB_OUTPUT
+        echo "file=tfplan-${{ github.sha }} >> $GITHUB_OUTPUT
+
+
