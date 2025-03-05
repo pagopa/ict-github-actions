@@ -91,7 +91,9 @@ runs:
       working-directory: ${{ inputs.terraform-root }}
       shell: bash
       run: |
-        echo "plan-plaintext=`terraform show -no-color ${{ inputs.plan-artifact-file }}`" >> $GITHUB_OUTPUT
+        echo 'plaintext<<EOF' >> $GITHUB_OUTPUT
+        terraform show -no-color ${{ inputs.plan-artifact-file }} >> $GITHUB_OUTPUT
+        echo 'EOF' >> $GITHUB_OUTPUT
 
     - name: Wait for approval
       if: inputs.explicit-manual-approvers != ''
