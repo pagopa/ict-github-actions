@@ -106,7 +106,7 @@ runs:
         issue-body: |
           An approval will allow this plan:
           ```hcl
-          ${{ steps.plantext.outputs.plan-plaintext }}
+          ${{ steps.plantext.outputs.plaintext }}
           ```
         exclude-workflow-initiator-as-approver: false
         additional-approved-words: ''
