@@ -109,7 +109,7 @@ runs:
       working-directory: ${{ inputs.terraform-root }}
       shell: bash
       env:
-        ARTIFACT_FILE: ${{ inputs.terraform-root }}/tfplan-${{ github.sha }}
+        ARTIFACT_FILE: tfplan-${{ github.sha }}
       run: |
         terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
 
