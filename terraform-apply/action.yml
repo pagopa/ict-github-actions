@@ -60,6 +60,14 @@ runs:
         restore-keys: |
           terraform-${{ inputs.terraform-root }}
 
+    - name: Azure Login
+      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+      if: inputs.azure-skip-login != 'true'
+      with:
+        tenant-id: ${{ inputs.tenant-id }}
+        subscription-id: ${{ inputs.subscription-id }}
+        client-id: ${{ inputs.client-id }}
+
     - name: Terraform init
       shell: bash
       working-directory: ${{ inputs.terraform-root }}
@@ -89,7 +97,7 @@ runs:
       if: inputs.explicit-manual-approvers != ''
       uses: trstringer/manual-approval@v1
       with:
-        secret: ${{ github.TOKEN }}
+        secret: ${{ inputs.github-token }}
         approvers: ${{ inputs.explicit-manual-approvers }}
         minimum-approvals: 1
         issue-title: "Terraform apply ${{ inputs.terraform-env }}"
@@ -101,14 +109,6 @@ runs:
         exclude-workflow-initiator-as-approver: false
         additional-approved-words: ''
         additional-denied-words: ''
-
-    - name: Azure Login
-      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
-      if: inputs.azure-skip-login != 'true'
-      with:
-        tenant-id: ${{ inputs.tenant-id }}
-        subscription-id: ${{ inputs.subscription-id }}
-        client-id: ${{ inputs.client-id }}
 
     - name: Terraform Apply
       shell: bash
