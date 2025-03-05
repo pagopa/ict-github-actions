@@ -46,11 +46,32 @@ inputs:
 runs:
   using: composite
 
+  env:
+    ARM_CLIENT_ID: ${{ inputs.client-id }}
+    ARM_TENANT_ID: ${{ inputs.tenant-id }}
+    ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
+    ARM_USE_OIDC: "true"
+    ARM_USE_AZUREAD: "true"
+
   steps:
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
       with:
         terraform_version: ${{ inputs.terraform-version }}
+
+    - name: Terraform cache
+      uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      with:
+        path: ${{ inputs.terraform-root }}/.terraform
+        key: terraform-${{ inputs.terraform-root }}-${{ github.sha }}
+        restore-keys: |
+          terraform-${{ inputs.terraform-root }}
+
+    - name: Terraform init
+      shell: bash
+      working-directory: ${{ inputs.terraform-root }}
+      run: |
+        ./terraform.sh init ${{ inputs.terraform-env }}
 
     - name: Download plan artifact
       uses: actions/download-artifact@6b208ae046db98c579e8a3aa621ab581ff575935 # v4.1.1
@@ -70,7 +91,6 @@ runs:
       uses: trstringer/manual-approval@v1
       with:
         secret: ${{ github.TOKEN }}
-        # workaround: it seems that teams cannot be added as issue assignees
         approvers: ${{ inputs.explicit-manual-approvers }}
         minimum-approvals: 1
         issue-title: "Terraform apply ${{ inputs.terraform-env }}"
@@ -91,28 +111,15 @@ runs:
         subscription-id: ${{ inputs.subscription-id }}
         client-id: ${{ inputs.client-id }}
 
-    - name: Terraform cache
-      uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-      with:
-        path: ${{ inputs.terraform-root }}/.terraform
-        key: terraform-${{ inputs.terraform-root }}-${{ github.sha }}
-        restore-keys: |
-          terraform-${{ inputs.terraform-root }}
-
-    - name: Apply
+    - name: Terraform Apply
       shell: bash
       working-directory: ${{ inputs.terraform-root }}
       env:
-        ARM_CLIENT_ID: ${{ inputs.client-id }}
-        ARM_TENANT_ID: ${{ inputs.tenant-id }}
-        ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
-        ARM_USE_OIDC: "true"
-        ARM_USE_AZUREAD: "true"
         PLAN_FILE: ${{ inputs.plan-artifact-file != '' && inputs.plan-artifact-file || github.sha }}
       run: |
-        ./terraform.sh apply ${{ inputs.terraform-env }}
+        terraform apply \
+            -var-file=env/${{ inputs.terraform-env }}/terraform.tfvars \
             -lock-timeout=3000s \
             -auto-approve \
             -input=false \
-            "$PLAN_FILE" \
-            | grep -v "hidden-link:"
+            "$PLAN_FILE"
