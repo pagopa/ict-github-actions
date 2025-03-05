@@ -80,7 +80,8 @@ runs:
             -out=tfplan-${{ github.sha }} \
             -detailed-exitcode
 
-        case $? in
+        exitcode=$?
+        case $exitcode in
           0) echo "has-changes=false" >> $GITHUB_OUTPUT ;;
           1) exit 1 ;;
           2) echo "has-changes=true" >> $GITHUB_OUTPUT ;;
