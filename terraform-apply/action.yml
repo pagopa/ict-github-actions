@@ -92,7 +92,7 @@ runs:
       shell: bash
       run: |
         echo 'plaintext<<EOF' >> $GITHUB_OUTPUT
-        terraform show -no-color ${{ inputs.plan-artifact-file }} >> $GITHUB_OUTPUT
+        terraform show -no-color ${{ inputs.plan-artifact-file }} | grep -v "hidden-link:" >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
 
     - name: Wait for approval
