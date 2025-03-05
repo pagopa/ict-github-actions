@@ -94,8 +94,7 @@ runs:
         ARTIFACT_FILE: ${{ inputs.plan-artifact-file }}
       run: |
         echo 'plaintext<<EOF' >> $GITHUB_OUTPUT
-        plaintext=`terraform show -no-color "$ARTIFACT_FILE"`
-        echo "$plaintext" >> $GITHUB_OUTPUT
+        echo `terraform show -no-color "$ARTIFACT_FILE"` >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
 
     - name: Wait for approval
