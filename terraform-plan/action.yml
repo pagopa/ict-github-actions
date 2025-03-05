@@ -89,6 +89,7 @@ runs:
 
     - name: Upload plan artifact
       uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
+      if: steps.plan.outputs.has-changes == 'true'
       with:
         name: tfplan
         path: ${{ inputs.terraform-root }}/tfplan-${{ github.sha }}
@@ -97,6 +98,7 @@ runs:
 
     - name: Plan artifact output
       id: artifact
+      if: steps.plan.outputs.has-changes == 'true'
       shell: bash
       run: |
         echo "name=tfplan" >> $GITHUB_OUTPUT
