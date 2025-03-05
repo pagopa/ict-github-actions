@@ -104,4 +104,56 @@ runs:
         echo "name=tfplan" >> $GITHUB_OUTPUT
         echo "file=tfplan-${{ github.sha }}" >> $GITHUB_OUTPUT
 
+    - name: Terraform plan plaintext
+      id: plantext
+      if: steps.plan.outputs.has-changes == 'true'
+      working-directory: ${{ inputs.terraform-root }}
+      shell: bash
+      env:
+        ARTIFACT_FILE: tfplan-${{ github.sha }}
+      run: |
+        terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
 
+    # Post the plan output in the PR
+    # The plan output is posted in a comment in the PR
+    # from https://github.com/pagopa/dx/blob/main/.github/workflows/infra_plan.yaml
+    - name: Post Plan on PR
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      id: comment
+      if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
+      with:
+        script: |
+          const fs = require('fs');
+          const output = fs.readFileSync('${{ inputs.terraform-root }}/plan_plain_text.txt', 'utf8');
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number
+          })
+          const botComment = comments.find(comment => {
+            return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${{ inputs.terraform-root }}')`)
+          })
+          const commentBody = `#### 📖 Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-env }}'
+          <details>
+          <summary>Terraform Plan</summary>
+
+          \`\`\`hcl
+          ${output}
+          \`\`\`
+
+          </details>
+          `;
+          if (botComment) {
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id
+            })
+          }
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: commentBody,
+            issue_number: context.issue.number
+          })
