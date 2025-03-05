@@ -28,9 +28,15 @@ inputs:
     default: 'false'
 
 outputs:
-  terraform-version: ${{ steps.tf-version.outputs.terraform-version }}
-  plan-artifact-name: ${{ steps.artifact.outputs.name }}
-  plan-artifact-file: ${{ steps.artifact.outputs.file }}
+  terraform-version:
+    description: Version of Terraform used
+    value: ${{ steps.tf-version.outputs.terraform-version }}
+  plan-artifact-name:
+    description: Name of the artifact in which the Terraform plan is stored
+    value: ${{ steps.artifact.outputs.name }}
+  plan-artifact-file:
+    description: Filename of the plan in the artifact
+    value: ${{ steps.artifact.outputs.file }}
 
 runs:
   using: composite
