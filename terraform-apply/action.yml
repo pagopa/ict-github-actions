@@ -124,7 +124,6 @@ runs:
         PLAN_FILE: ${{ inputs.plan-artifact-file != '' && inputs.plan-artifact-file || github.sha }}
       run: |
         terraform apply \
-            -var-file=env/${{ inputs.terraform-env }}/terraform.tfvars \
             -lock-timeout=3000s \
             -auto-approve \
             -input=false \
