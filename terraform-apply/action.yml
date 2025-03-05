@@ -90,9 +90,12 @@ runs:
       id: plantext
       working-directory: ${{ inputs.terraform-root }}
       shell: bash
+      env:
+        ARTIFACT_FILE: ${{ inputs.plan-artifact-file }}
       run: |
         echo 'plaintext<<EOF' >> $GITHUB_OUTPUT
-        terraform show -no-color ${{ inputs.plan-artifact-file }} | grep -v "hidden-link:" >> $GITHUB_OUTPUT
+        plaintext=`terraform show -no-color "$ARTIFACT_FILE"`
+        echo "$plaintext" >> $GITHUB_OUTPUT
         echo 'EOF' >> $GITHUB_OUTPUT
 
     - name: Wait for approval
