@@ -88,6 +88,6 @@ runs:
       shell: bash
       run: |
         echo "name=tfplan" >> $GITHUB_OUTPUT
-        echo "file=tfplan-${{ github.sha }} >> $GITHUB_OUTPUT
+        echo "file=tfplan-${{ github.sha }}" >> $GITHUB_OUTPUT
 
 
