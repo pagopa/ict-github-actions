@@ -93,9 +93,8 @@ runs:
       env:
         ARTIFACT_FILE: ${{ inputs.plan-artifact-file }}
       run: |
-        echo 'plaintext<<EOF' >> $GITHUB_OUTPUT
-        echo `terraform show -no-color "$ARTIFACT_FILE"` >> $GITHUB_OUTPUT
-        echo 'EOF' >> $GITHUB_OUTPUT
+        terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
+        echo "plaintext=`cat plan_plain_text.txt`" >> $GITHUB_OUTPUT
 
     - name: Wait for approval
       if: inputs.explicit-manual-approvers != ''
