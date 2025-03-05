@@ -27,13 +27,22 @@ inputs:
     description: Set to 'true' to skip login, maybe because it's performed externally
     default: 'false'
 
+outputs:
+  terraform-version:
+    description: Version of Terraform used
+    value: ${{ steps.tf-version.outputs.terraform-version }}
+  plan-artifact-name:
+    description: Name of the artifact in which the Terraform plan is stored
+    value: ${{ steps.artifact.outputs.name }}
+  plan-artifact-file:
+    description: Filename of the plan in the artifact
+    value: ${{ steps.artifact.outputs.file }}
+  has-changes:
+    description: Whether the plan has changes to apply
+    value: ${{ steps.plan.outputs.has-changes }}
+
 runs:
   using: composite
-
-  outputs:
-    terraform-version: ${{ steps.tf-version.outputs.terraform-version }}
-    plan-artifact-name: ${{ steps.artifact.outputs.name }}
-    plan-artifact-file: ${{ steps.artifact.outputs.file }}
 
   steps:
     - name: Azure Login
@@ -56,6 +65,7 @@ runs:
         terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
 
     - name: Plan
+      id: plan
       shell: bash
       working-directory: ${{ inputs.terraform-root }}
       env:
@@ -68,22 +78,82 @@ runs:
         ./terraform.sh plan ${{ inputs.terraform-env }} \
             -lock=false \
             -out=tfplan-${{ github.sha }} \
-            -input=false \
-            | grep -v "hidden-link:"
+            -detailed-exitcode
+
+        case $? in
+          0) echo "has-changes=false" >> $GITHUB_OUTPUT ;;
+          1) exit 1 ;;
+          2) echo "has-changes=true" >> $GITHUB_OUTPUT ;;
+          *) exit 1 ;; 
+        esac
 
     - name: Upload plan artifact
       uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
+      if: steps.plan.outputs.has-changes == 'true'
       with:
         name: tfplan
-        path: ${{ steps.directory.outputs.dir }}/tfplan-${{ github.sha }}
+        path: ${{ inputs.terraform-root }}/tfplan-${{ github.sha }}
         if-no-files-found: error
         retention-days: 7
 
     - name: Plan artifact output
       id: artifact
+      if: steps.plan.outputs.has-changes == 'true'
       shell: bash
       run: |
         echo "name=tfplan" >> $GITHUB_OUTPUT
-        echo "file=tfplan-${{ github.sha }} >> $GITHUB_OUTPUT
+        echo "file=tfplan-${{ github.sha }}" >> $GITHUB_OUTPUT
 
+    - name: Terraform plan plaintext
+      id: plantext
+      if: steps.plan.outputs.has-changes == 'true'
+      working-directory: ${{ inputs.terraform-root }}
+      shell: bash
+      env:
+        ARTIFACT_FILE: tfplan-${{ github.sha }}
+      run: |
+        terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
 
+    # Post the plan output in the PR
+    # The plan output is posted in a comment in the PR
+    # from https://github.com/pagopa/dx/blob/main/.github/workflows/infra_plan.yaml
+    - name: Post Plan on PR
+      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+      id: comment
+      if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
+      with:
+        script: |
+          const fs = require('fs');
+          const output = fs.readFileSync('${{ inputs.terraform-root }}/plan_plain_text.txt', 'utf8');
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number
+          })
+          const botComment = comments.find(comment => {
+            return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${{ inputs.terraform-root }}')`)
+          })
+          const commentBody = `#### 📖 Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-env }}'
+          <details>
+          <summary>Terraform Plan</summary>
+
+          \`\`\`hcl
+          ${output}
+          \`\`\`
+
+          </details>
+          `;
+          if (botComment) {
+            await github.rest.issues.deleteComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id
+            })
+          }
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: commentBody,
+            issue_number: context.issue.number
+          })
