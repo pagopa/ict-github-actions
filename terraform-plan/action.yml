@@ -27,13 +27,13 @@ inputs:
     description: Set to 'true' to skip login, maybe because it's performed externally
     default: 'false'
 
+outputs:
+  terraform-version: ${{ steps.tf-version.outputs.terraform-version }}
+  plan-artifact-name: ${{ steps.artifact.outputs.name }}
+  plan-artifact-file: ${{ steps.artifact.outputs.file }}
+
 runs:
   using: composite
-
-  outputs:
-    terraform-version: ${{ steps.tf-version.outputs.terraform-version }}
-    plan-artifact-name: ${{ steps.artifact.outputs.name }}
-    plan-artifact-file: ${{ steps.artifact.outputs.file }}
 
   steps:
     - name: Azure Login
