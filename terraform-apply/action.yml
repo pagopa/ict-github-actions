@@ -100,7 +100,7 @@ runs:
 
     - name: Wait for approval
       if: inputs.explicit-manual-approvers != ''
-      uses: trstringer/manual-approval@v1
+      uses: trstringer/manual-approval@662b3ddbc7685f897992051e87e1b4b58c07dc03 # v1
       with:
         secret: ${{ inputs.github-token }}
         approvers: ${{ inputs.explicit-manual-approvers }}
