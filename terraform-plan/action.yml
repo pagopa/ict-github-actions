@@ -39,7 +39,7 @@ outputs:
     value: ${{ steps.artifact.outputs.file }}
   has-changes:
     description: Whether the plan has changes to apply
-    value: ${{ steps.plan.outputs.has-changes }}
+    value: ${{ steps.plan.outputs.exitcode == '2' && 'true' || 'false' }}
 
 runs:
   using: composite
@@ -64,6 +64,28 @@ runs:
       with:
         terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
 
+    - name: Terraform cache
+      uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      with:
+        path: ${{ inputs.terraform-root }}/.terraform
+        key: terraform-${{ inputs.terraform-root }}-${{ github.sha }}
+        restore-keys: |
+          terraform-${{ inputs.terraform-root }}
+
+    - name: Init
+      shell: bash
+      working-directory: ${{ inputs.terraform-root }}
+      env:
+        ARM_CLIENT_ID: ${{ inputs.client-id }}
+        ARM_TENANT_ID: ${{ inputs.tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
+        ARM_USE_OIDC: "true"
+        ARM_USE_AZUREAD: "true"
+      run: |
+        terraform init \
+            -reconfigure \
+            -backend-config="./env/${{ inputs.terraform-env }}/backend.tfvars"
+
     - name: Plan
       id: plan
       shell: bash
@@ -75,22 +97,23 @@ runs:
         ARM_USE_OIDC: "true"
         ARM_USE_AZUREAD: "true"
       run: |
-        ./terraform.sh plan ${{ inputs.terraform-env }} \
+        # don't fail because exit 2 means ok, plan has changes
+        set +e
+        
+        terraform plan \
+            -var-file="./env/${{ inputs.terraform-env }}/terraform.tfvars" \
             -lock=false \
             -out=tfplan-${{ github.sha }} \
             -detailed-exitcode
 
-        exitcode=$?
-        case $exitcode in
-          0) echo "has-changes=false" >> $GITHUB_OUTPUT ;;
-          1) exit 1 ;;
-          2) echo "has-changes=true" >> $GITHUB_OUTPUT ;;
-          *) exit 1 ;; 
-        esac
+    - name: Check plan status
+      if: steps.plan.outputs.exitcode == '1'
+      shell: bash
+      run: exit 1
 
     - name: Upload plan artifact
       uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
-      if: steps.plan.outputs.has-changes == 'true'
+      if: steps.plan.outputs.exitcode == '2'
       with:
         name: tfplan
         path: ${{ inputs.terraform-root }}/tfplan-${{ github.sha }}
@@ -99,7 +122,7 @@ runs:
 
     - name: Plan artifact output
       id: artifact
-      if: steps.plan.outputs.has-changes == 'true'
+      if: steps.plan.outputs.exitcode == '2'
       shell: bash
       run: |
         echo "name=tfplan" >> $GITHUB_OUTPUT
@@ -107,7 +130,7 @@ runs:
 
     - name: Terraform plan plaintext
       id: plantext
-      if: steps.plan.outputs.has-changes == 'true'
+      if: steps.plan.outputs.exitcode == '2'
       working-directory: ${{ inputs.terraform-root }}
       shell: bash
       env:
@@ -121,7 +144,7 @@ runs:
     - name: Post Plan on PR
       uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       id: comment
-      if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
+      if: steps.plan.outputs.exitcode == '2' && github.event_name == 'pull_request'
       with:
         script: |
           const fs = require('fs');
