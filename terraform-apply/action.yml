@@ -53,12 +53,10 @@ runs:
         terraform_version: ${{ inputs.terraform-version }}
 
     - name: Terraform cache
-      uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      uses: ../terraform-cache
       with:
-        path: ${{ inputs.terraform-root }}/.terraform
-        key: terraform-${{ inputs.terraform-root }}-${{ github.sha }}
-        restore-keys: |
-          terraform-${{ inputs.terraform-root }}
+        terraform-root: ${{ inputs.terraform-root }}
+        terraform-env: ${{ inputs.terraform-env }}
 
     - name: Azure Login
       uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
@@ -87,6 +85,7 @@ runs:
         path: ${{ inputs.terraform-root }}
 
     - name: Terraform plan plaintext
+      if: inputs.explicit-manual-approvers != ''
       id: plantext
       working-directory: ${{ inputs.terraform-root }}
       shell: bash
