@@ -151,7 +151,7 @@ runs:
             issue_number: context.issue.number
           })
           const botComment = comments.find(comment => {
-            return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${{ inputs.terraform-root }}')`)
+            return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-env }}'`)
           })
           const commentBody = `#### 📖 Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-env }}'
           <details>
