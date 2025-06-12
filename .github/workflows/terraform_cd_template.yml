@@ -1,0 +1,128 @@
+# Reusable workflow for CD of Terraform workloads on Azure.
+#
+# Prerequisites:
+# - A GitHub environment for the plan job and one for the apply job.
+#   The same environment can be used in both cases if needed.
+# - A Azure managed identity for the plan job and one for the apply job.
+#   It has to have sufficient permission to do what Terraform say, and
+#   a federated credential setup with GitHub OIDC.
+#   The same managed identity can be used in both cases.
+# - Secrets in the GitHub environment for Azure targeting tenant, sub, managed id.
+# 
+# Features:
+# - Login to Azure with managed identity using OIDC federation (no secret)
+# - Direct apply, or
+# - Wait for manual approval with a GitHub issue that shows the exact
+#   plan that will be applied in user-friendly way
+
+name: Terraform CD
+
+on:
+  workflow_call:
+    inputs:
+      environment-plan:
+        type: string
+        required: true
+        description: GitHub environment for Terraform plan
+      environment-apply:
+        type: string
+        required: true
+        description: GitHub environment for Terraform apply
+      terraform-environment:
+        type: string
+        required: true
+        description: Terraform environment folder name in which backend config and tfvars are stored
+      terraform-root:
+        type: string
+        required: true
+        description: Root directory of the Terraform script to execute
+      apply-manual-approvers:
+        type: string
+        required: false
+        description: Manual approvers for the Apply job, if needed
+        default: ''
+    secrets:
+      ARM_TENANT_ID:
+        type: string
+        required: true
+        description: Azure Tenant ID
+      ARM_SUBSCRIPTION_ID:
+        type: string
+        required: true
+        description: Azure Subscription ID
+      ARM_CLIENT_ID:
+        type: string
+        required: true
+        description: Azure Client ID of the managed identity that the job will authenticate with
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  terraform_plan:
+    name: Terraform Plan
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment-plan }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      terraform-version: ${{ steps.plan.outputs.terraform-version }}
+      plan-artifact-name: ${{ steps.plan.outputs.plan-artifact-name }}
+      plan-artifact-file: ${{ steps.plan.outputs.plan-artifact-file }}
+      has-changes: ${{ steps.plan.outputs.has-changes }}
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Terraform Plan
+        id: plan
+        uses: pagopa/ict-github-actions/terraform-plan@71fb6497cb5f40919d36bab1b1a9583aed440ec5 # v1.8.2
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-env: ${{ inputs.terraform-environment }}
+          terraform-root: ${{ inputs.terraform-root }}
+
+  terraform_apply:
+    name: Terraform Apply
+    needs: terraform_plan
+    if: needs.terraform_plan.outputs.has-changes == 'true'
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment-apply }}
+
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Terraform Apply
+        uses: pagopa/ict-github-actions/terraform-apply@71fb6497cb5f40919d36bab1b1a9583aed440ec5 # v1.8.2
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-env: ${{ inputs.terraform-environment }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-version: ${{ needs.terraform_plan.outputs.terraform-version }}
+          plan-artifact-name: ${{ needs.terraform_plan.outputs.plan-artifact-name }}
+          plan-artifact-file: ${{ needs.terraform_plan.outputs.plan-artifact-file }}
+          explicit-manual-approvers: ${{ inputs.apply-manual-approvers }}
+          github-token: ${{ github.token }}

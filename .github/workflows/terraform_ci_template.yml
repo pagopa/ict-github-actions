@@ -1,0 +1,71 @@
+# Reusable workflow for CI of Terraform workloads on Azure.
+#
+# Prerequisites:
+# - A GitHub environment for the plan job
+# - A Azure managed identity for the plan job.  It has to have
+#   sufficient permission to do what Terraform say, and a federated
+#   credential setup with GitHub OIDC.
+# - Secrets in the GitHub environment for Azure targeting tenant, sub, managed id.
+# 
+# Features:
+# - Login to Azure with managed identity using OIDC federation (no secret)
+# - Post the plan pretty-printed as comment if the originating PR, if any
+
+name: Terraform CI
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+        description: GitHub environment
+      terraform-environment:
+        type: string
+        required: true
+        description: Terraform environment folder name in which backend config and tfvars are stored
+      terraform-root:
+        type: string
+        required: true
+        description: Root directory of the Terraform script to execute
+    secrets:
+      ARM_TENANT_ID:
+        type: string
+        required: true
+        description: Azure Tenant ID
+      ARM_SUBSCRIPTION_ID:
+        type: string
+        required: true
+        description: Azure Subscription ID
+      ARM_CLIENT_ID:
+        type: string
+        required: true
+        description: Azure Client ID of the managed identity that the job will authenticate with
+
+jobs:
+  terraform_plan:
+    name: Terraform Plan
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Terraform plan
+        uses: pagopa/ict-github-actions/terraform-plan@71fb6497cb5f40919d36bab1b1a9583aed440ec5 # v1.8.2
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-env: ${{ inputs.terraform-environment }}
+          terraform-root: ${{ inputs.terraform-root }}
