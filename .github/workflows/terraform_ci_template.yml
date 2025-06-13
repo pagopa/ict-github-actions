@@ -91,7 +91,6 @@ jobs:
       - name: Terraform Plan
         uses: pagopa/ict-github-actions/terraform-plan@798ad514996694a2c40ad79a1feec943ee5293fe # v2.0.0
         id: plan
-        shell: bash
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
