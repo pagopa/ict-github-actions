@@ -11,26 +11,15 @@ inputs:
   client-id:
     required: true
     description: Azure Client ID
-  terraform-env:
+  terraform-tfvars-file:
     required: true
-    description: Terraform environment like in env/ folder
+    description: Terraform path of the tfvars to use to generate the plan
   terraform-root:
     required: false
     description: Path of the folder where the root terraform module is found
     default: .
-  terraform-version-file:
-    required: false
-    description: Path of the Terraform version file
-    default: .terraform-version
-  azure-skip-login:
-    required: false
-    description: Set to 'true' to skip login, maybe because it's performed externally
-    default: 'false'
 
 outputs:
-  terraform-version:
-    description: Version of Terraform used
-    value: ${{ steps.tf-version.outputs.terraform-version }}
   plan-artifact-name:
     description: Name of the artifact in which the Terraform plan is stored
     value: ${{ steps.artifact.outputs.name }}
@@ -43,65 +32,36 @@ outputs:
 
 runs:
   using: composite
-
   steps:
-    - name: Azure Login
-      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
-      if: inputs.azure-skip-login != 'true'
-      with:
-        tenant-id: ${{ inputs.tenant-id }}
-        subscription-id: ${{ inputs.subscription-id }}
-        client-id: ${{ inputs.client-id }}
-
-    - name: Read terraform version
-      id: tf-version
+    - name: Generate plan artifact name
+      id: artifact
       shell: bash
-      run: |
-        echo "terraform-version=`cat ${{ inputs.terraform-version-file }}`" >> $GITHUB_OUTPUT
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
-      with:
-        terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
-
-    - name: Terraform cache
-      uses: pagopa/ict-github-actions/terraform-cache@81e01d7b8c3302444d389e41f17d283f199ba357
-      with:
-        terraform-root: ${{ inputs.terraform-root }}
-        terraform-env: ${{ inputs.terraform-env }}
-
-    - name: Init
-      shell: bash
-      working-directory: ${{ inputs.terraform-root }}
       env:
-        ARM_CLIENT_ID: ${{ inputs.client-id }}
-        ARM_TENANT_ID: ${{ inputs.tenant-id }}
-        ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
-        ARM_USE_OIDC: "true"
-        ARM_USE_AZUREAD: "true"
+        TFPLAN_FILE: tfplan-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       run: |
-        terraform init \
-            -reconfigure \
-            -backend-config="./env/${{ inputs.terraform-env }}/backend.tfvars"
+        echo "name=$TFPLAN_FILE" >> $GITHUB_OUTPUT
+        echo "filename=$TFPLAN_FILE" >> $GITHUB_OUTPUT
 
-    - name: Plan
+    - name: Terraform Plan
       id: plan
       shell: bash
       working-directory: ${{ inputs.terraform-root }}
       env:
-        ARM_CLIENT_ID: ${{ inputs.client-id }}
         ARM_TENANT_ID: ${{ inputs.tenant-id }}
         ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
+        ARM_CLIENT_ID: ${{ inputs.client-id }}
         ARM_USE_OIDC: "true"
         ARM_USE_AZUREAD: "true"
+        TFVARS_FILE: ${{ inputs.terraform-tfvars-file }}
+        TFPLAN_FILE: ${{ steps.artifact.outputs.filename }}
       run: |
         # don't fail because exit 2 means ok, plan has changes
         set +e
         
         terraform plan \
-            -var-file="./env/${{ inputs.terraform-env }}/terraform.tfvars" \
+            -var-file="$TFVARS_FILE" \
             -lock=false \
-            -out=tfplan-${{ inputs.terraform-env }}-${{ github.sha }} \
+            -out="$TFPLAN_FILE" \
             -detailed-exitcode
 
     - name: Check plan status
@@ -109,71 +69,11 @@ runs:
       shell: bash
       run: exit 1
 
-    - name: Plan artifact output
-      id: artifact
-      if: steps.plan.outputs.exitcode == '2'
-      shell: bash
-      run: |
-        echo "name=tfplan" >> $GITHUB_OUTPUT
-        echo "filename=tfplan-${{ inputs.terraform-env }}-${{ github.sha }}" >> $GITHUB_OUTPUT
-
     - name: Upload plan artifact
       uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
       if: steps.plan.outputs.exitcode == '2'
       with:
-        name: tfplan
+        name: ${{ steps.artifact.outputs.name }}
         path: ${{ inputs.terraform-root }}/${{ steps.artifact.outputs.filename }}
         if-no-files-found: error
         retention-days: 7
-
-    - name: Terraform plan plaintext
-      id: plantext
-      if: steps.plan.outputs.exitcode == '2' && github.event_name == 'pull_request'
-      working-directory: ${{ inputs.terraform-root }}
-      shell: bash
-      run: |
-        terraform show -no-color "${{ steps.artifact.outputs.filename }}" > plan_plain_text.txt
-
-    # Post the plan output in the PR
-    # The plan output is posted in a comment in the PR
-    # from https://github.com/pagopa/dx/blob/main/.github/workflows/infra_plan.yaml
-    - name: Post Plan on PR
-      uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-      id: comment
-      if: steps.plan.outputs.exitcode == '2' && github.event_name == 'pull_request'
-      with:
-        script: |
-          const fs = require('fs');
-          const output = fs.readFileSync('${{ inputs.terraform-root }}/plan_plain_text.txt', 'utf8');
-          const { data: comments } = await github.rest.issues.listComments({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            issue_number: context.issue.number
-          })
-          const botComment = comments.find(comment => {
-            return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-env }}'`)
-          })
-          const commentBody = `#### 📖 Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-env }}'
-          <details>
-          <summary>Terraform Plan</summary>
-
-          \`\`\`hcl
-          ${output}
-          \`\`\`
-
-          </details>
-          `;
-          if (botComment) {
-            await github.rest.issues.deleteComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: botComment.id
-            })
-          }
-
-          await github.rest.issues.createComment({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: commentBody,
-            issue_number: context.issue.number
-          })

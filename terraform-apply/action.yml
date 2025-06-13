@@ -11,121 +11,28 @@ inputs:
   client-id:
     required: true
     description: Azure Client ID
-  terraform-env:
-    required: true
-    description: Terraform environment like in env/ folder
   terraform-root:
     required: false
     description: Path of the folder where the root terraform module is found
     default: .
-  terraform-version:
+  terraform-plan-file:
     required: true
-    description: Version of Terraform
-  azure-skip-login:
-    required: false
-    description: Set to 'true' to skip login, maybe because it's performed externally
-    default: 'false'
-  explicit-manual-approvers:
-    required: false
-    description: Use this for approval in PRIVATE repos, otherwise use standard deployment review. Set comma-separated list of users that can approve deployment.
-    default: ''
-  plan-artifact-name:
-    required: false
-    description: Name of the GitHub artifact where plan to apply is stored. Has to be in terraform-root
-    default: tfplan
-  plan-artifact-file:
-    required: false
-    description: File name in the GitHub artifact of the plan to apply
-    default: ''
-  github-token:
-    required: false
-    description: GitHub token with Issue Write permission, required if using explicit manual approval
-    default: ''
-    
+    description: Path of the Terraform plan to apply
 
 runs:
   using: composite
 
   steps:
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
-      with:
-        terraform_version: ${{ inputs.terraform-version }}
-
-    - name: Terraform cache
-      uses: pagopa/ict-github-actions/terraform-cache@81e01d7b8c3302444d389e41f17d283f199ba357
-      with:
-        terraform-root: ${{ inputs.terraform-root }}
-        terraform-env: ${{ inputs.terraform-env }}
-
-    - name: Azure Login
-      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
-      if: inputs.azure-skip-login != 'true'
-      with:
-        tenant-id: ${{ inputs.tenant-id }}
-        subscription-id: ${{ inputs.subscription-id }}
-        client-id: ${{ inputs.client-id }}
-
-    - name: Terraform init
-      shell: bash
-      working-directory: ${{ inputs.terraform-root }}
-      env:
-        ARM_CLIENT_ID: ${{ inputs.client-id }}
-        ARM_TENANT_ID: ${{ inputs.tenant-id }}
-        ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
-        ARM_USE_OIDC: "true"
-        ARM_USE_AZUREAD: "true"
-      run: |
-        ./terraform.sh init ${{ inputs.terraform-env }}
-
-    - name: Download plan artifact
-      uses: actions/download-artifact@6b208ae046db98c579e8a3aa621ab581ff575935 # v4.1.1
-      with:
-        name: tfplan
-        path: ${{ inputs.terraform-root }}
-
-    - name: Terraform plan plaintext
-      if: inputs.explicit-manual-approvers != ''
-      id: plantext
-      working-directory: ${{ inputs.terraform-root }}
-      shell: bash
-      env:
-        ARTIFACT_FILE: ${{ inputs.plan-artifact-file }}
-      run: |
-        terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
-        {
-          echo 'plaintext<<EOF'
-          cat plan_plain_text.txt
-          echo 'EOF'
-        } >> $GITHUB_OUTPUT
-
-    - name: Wait for approval
-      if: inputs.explicit-manual-approvers != ''
-      uses: trstringer/manual-approval@662b3ddbc7685f897992051e87e1b4b58c07dc03 # v1
-      with:
-        secret: ${{ inputs.github-token }}
-        approvers: ${{ inputs.explicit-manual-approvers }}
-        minimum-approvals: 1
-        issue-title: "Terraform apply ${{ inputs.terraform-env }}"
-        issue-body: |
-          An approval will allow this plan:
-          ```hcl
-          ${{ steps.plantext.outputs.plaintext }}
-          ```
-        exclude-workflow-initiator-as-approver: false
-        additional-approved-words: ''
-        additional-denied-words: ''
-
     - name: Terraform Apply
       shell: bash
       working-directory: ${{ inputs.terraform-root }}
       env:
-        ARM_CLIENT_ID: ${{ inputs.client-id }}
         ARM_TENANT_ID: ${{ inputs.tenant-id }}
         ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
+        ARM_CLIENT_ID: ${{ inputs.client-id }}
         ARM_USE_OIDC: "true"
         ARM_USE_AZUREAD: "true"
-        PLAN_FILE: ${{ inputs.plan-artifact-file != '' && inputs.plan-artifact-file || github.sha }}
+        PLAN_FILE: ${{ inputs.terraform-plan-file }}
       run: |
         terraform apply \
             -lock-timeout=3000s \
