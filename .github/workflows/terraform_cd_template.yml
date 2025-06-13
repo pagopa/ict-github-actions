@@ -79,8 +79,10 @@ jobs:
       - name: Read terraform version
         id: tf-version
         shell: bash
+        env:
+          TERRAFORM_VERSION_FILE: ${{ inputs.terraform-version-file }}
         run: |
-          echo "terraform-version=`cat ${{ inputs.terraform-version-file }}`" >> $GITHUB_OUTPUT
+          echo "terraform-version=$(cat "$TERRAFORM_VERSION_FILE")" >> $GITHUB_OUTPUT
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
