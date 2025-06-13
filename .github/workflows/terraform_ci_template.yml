@@ -77,7 +77,7 @@ jobs:
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          client-id: ${{ secret.ARM_CLIENT_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
 
       - name: Read terraform version
         id: tf-version
