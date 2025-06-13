@@ -93,7 +93,7 @@ jobs:
         uses: pagopa/ict-github-actions/terraform-cache@81e01d7b8c3302444d389e41f17d283f199ba357
         with:
           terraform-root: ${{ inputs.terraform-root }}
-          terraform-env: ${{ inputs.terraform-env }}
+          terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Azure Login
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
@@ -103,7 +103,7 @@ jobs:
           subscription-id: ${{ inputs.subscription-id }}
           client-id: ${{ inputs.client-id }}
 
-      - name: Terraform init
+      - name: Terraform Init
         shell: bash
         working-directory: ${{ inputs.terraform-root }}
         env:
@@ -112,8 +112,11 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
           ARM_USE_OIDC: "true"
           ARM_USE_AZUREAD: "true"
+          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
         run: |
-          ./terraform.sh init ${{ inputs.terraform-env }}
+          terraform init \
+              -reconfigure \
+              -backend-config="./env/$TERRAFORM_ENVIRONMENT/backend.tfvars"
 
       - name: Download plan artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -143,7 +146,7 @@ jobs:
           secret: ${{ github.token }}
           approvers: ${{ inputs.explicit-manual-approvers }}
           minimum-approvals: 1
-          issue-title: "Terraform apply ${{ inputs.terraform-env }}"
+          issue-title: "Terraform apply ${{ inputs.terraform-environment }}"
           issue-body: |
             An approval will allow this plan:
             ```hcl

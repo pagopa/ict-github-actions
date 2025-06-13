@@ -98,7 +98,7 @@ jobs:
           terraform-root: ${{ inputs.terraform-root }}
           terraform-env: ${{ inputs.terraform-environment }}
 
-      - name: Init
+      - name: Terraform Init
         shell: bash
         working-directory: ${{ inputs.terraform-root }}
         env:
@@ -107,12 +107,13 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
           ARM_USE_OIDC: "true"
           ARM_USE_AZUREAD: "true"
+          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
         run: |
           terraform init \
               -reconfigure \
-              -backend-config="./env/${{ inputs.terraform-environment }}/backend.tfvars"
+              -backend-config="./env/$TERRAFORM_ENVIRONMENT/backend.tfvars"
 
-      - name: Plan
+      - name: Terraform Plan
         id: plan
         shell: bash
         working-directory: ${{ inputs.terraform-root }}
@@ -122,14 +123,15 @@ jobs:
           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
           ARM_USE_OIDC: "true"
           ARM_USE_AZUREAD: "true"
+          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
         run: |
           # don't fail because exit 2 means ok, plan has changes
           set +e
           
           terraform plan \
-              -var-file="./env/${{ inputs.terraform-environment }}/terraform.tfvars" \
+              -var-file="./env/$TERRAFORM_ENVIRONMENT/terraform.tfvars" \
               -lock=false \
-              -out=tfplan-${{ inputs.terraform-environment }}-${{ github.sha }} \
+              -out="tfplan-$TERRAFORM_ENVIRONMENT-${{ github.sha }}" \
               -detailed-exitcode
 
       - name: Check plan status
@@ -141,9 +143,11 @@ jobs:
         id: artifact
         if: steps.plan.outputs.exitcode == '2'
         shell: bash
+        env:
+          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
         run: |
           echo "name=tfplan" >> $GITHUB_OUTPUT
-          echo "filename=tfplan-${{ inputs.terraform-environment }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "filename=tfplan-$TERRAFORM_ENVIRONMENT-${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
@@ -159,8 +163,10 @@ jobs:
         if: steps.plan.outputs.exitcode == '2' && github.event_name == 'pull_request'
         working-directory: ${{ inputs.terraform-root }}
         shell: bash
+        env:
+          ARTIFACT_FILE: ${{ steps.artifact.outputs.filename }}
         run: |
-          terraform show -no-color "${{ steps.artifact.outputs.filename }}" > plan_plain_text.txt
+          terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
 
       # Post the plan output in the PR
       # The plan output is posted in a comment in the PR
