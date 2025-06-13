@@ -3,14 +3,10 @@ name: terraform
 on:
   workflow_call:
     inputs:
-      plan-environment:
+      environment:
         type: string
         required: true
-        description: GitHub environment for plan
-      apply-environment:
-        type: string
-        required: true
-        description: GitHub environment for apply
+        description: GitHub environment
       terraform-environment:
         type: string
         required: true
@@ -38,7 +34,7 @@ on:
 jobs:
   plan:
     runs-on: ubuntu-24.04
-    environment: ${{ inputs.environment-plan }}
+    environment: ${{ inputs.environment }}
 
     permissions:
       id-token: write
@@ -85,7 +81,7 @@ jobs:
 
   apply:
     runs-on: ubuntu-24.04
-    environment: ${{ inputs.environment-apply }}
+    environment: ${{ inputs.environment }}
     needs: plan
 
     permissions:
