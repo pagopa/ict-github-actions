@@ -1,0 +1,33 @@
+name: Terraform plan
+description: "Terraform plan on Azure"
+
+inputs:
+  terraform-plan-file:
+    required: true
+    description: Path of the plan on filesystem
+  terraform-root:
+    required: false
+    description: Path of the folder where the root terraform module is found
+    default: .
+
+outputs:
+  plan-prettified:
+    description: Plaintext prettified plan
+    value: ${{ steps.prettify.outputs.plaintext }}
+
+runs:
+  using: composite
+  steps:
+    - name: Prettify Terraform plan
+      id: prettify
+      working-directory: ${{ inputs.terraform-root }}
+      shell: bash
+      env:
+        ARTIFACT_FILE: ${{ inputs.terraform-plan-file }}
+      run: |
+        terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
+        {
+          echo 'plaintext<<EOF'
+          cat plan_plain_text.txt
+          echo 'EOF'
+        } >> $GITHUB_OUTPUT
