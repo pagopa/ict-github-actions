@@ -1,0 +1,61 @@
+name: Terraform init
+description: "Terraform init on Azure"
+
+inputs:
+  terraform-env:
+    required: true
+    description: Terraform environment like in env/ folder
+  tenant-id:
+    required: true
+    description: Azure Tenant ID
+  subscription-id:
+    required: true
+    description: Azure Subscription ID
+  client-id:
+    required: true
+    description: Azure Client ID
+  terraform-root:
+    required: false
+    description: Path of the folder where the root terraform module is found
+    default: .
+  terraform-version-file:
+    required: false
+    description: Path of the Terraform version file
+    default: .terraform-version
+
+runs:
+  using: composite
+  steps:
+    - name: Read Terraform version
+      id: tf-version
+      shell: bash
+      env:
+        TERRAFORM_VERSION_FILE: ${{ inputs.terraform-version-file }}
+      run: |
+        echo "terraform-version=$(cat $TERRAFORM_VERSION_FILE)" >> $GITHUB_OUTPUT
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+      with:
+        terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
+
+    - name: Terraform cache
+      uses: pagopa/ict-github-actions/terraform-cache@81e01d7b8c3302444d389e41f17d283f199ba357
+      with:
+        terraform-root: ${{ inputs.terraform-root }}
+        terraform-env: ${{ inputs.terraform-env }}
+
+    - name: Terraform init
+      shell: bash
+      working-directory: ${{ inputs.terraform-root }}
+      env:
+        ARM_TENANT_ID: ${{ inputs.tenant-id }}
+        ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
+        ARM_CLIENT_ID: ${{ inputs.client-id }}
+        ARM_USE_OIDC: "true"
+        ARM_USE_AZUREAD: "true"
+        TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-env }}
+      run: |
+        terraform init \
+            -reconfigure \
+            -backend-config="./env/$TERRAFORM_ENVIRONMENT/backend.tfvars"
