@@ -61,8 +61,8 @@ jobs:
       pull-requests: write
 
     outputs:
-      plan-artifact-name: ${{ steps.artifact.outputs.plan-artifact-name }}
-      plan-artifact-file: ${{ steps.artifact.outputs.plan-artifact-file }}
+      plan-artifact-name: ${{ steps.plan.outputs.plan-artifact-name }}
+      plan-artifact-file: ${{ steps.plan.outputs.plan-artifact-file }}
       has-changes: ${{ steps.plan.outputs.has-changes }}
 
     steps:
