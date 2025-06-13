@@ -32,20 +32,18 @@ on:
         type: string
         required: true
         description: Root directory of the Terraform script to execute
+      terraform-plan-artifact-name:
+        type: string
+        required: true
+        description: Name of the GitHub artifact where plan to apply is stored. Has to be in terraform-root
+      terraform-plan-artifact-file:
+        type: string
+        required: true
+        description: File name in the GitHub artifact of the plan to apply
       apply-manual-approvers:
         type: string
         required: false
         description: Manual approvers for the Apply job, if needed
-        default: ''
-      plan-artifact-name:
-        type: string
-        required: false
-        description: Name of the GitHub artifact where plan to apply is stored. Has to be in terraform-root
-        default: tfplan
-      plan-artifact-file:
-        type: string
-        required: false
-        description: File name in the GitHub artifact of the plan to apply
         default: ''
     secrets:
       ARM_TENANT_ID:
@@ -96,7 +94,7 @@ jobs:
       - name: Download plan artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: tfplan
+          name: ${{ inputs.terraform-plan-artifact-name }}
           path: ${{ inputs.terraform-root }}
 
       - name: Prettify Terraform plan
@@ -105,7 +103,7 @@ jobs:
         working-directory: ${{ inputs.terraform-root }}
         shell: bash
         env:
-          ARTIFACT_FILE: ${{ inputs.plan-artifact-file }}
+          ARTIFACT_FILE: ${{ inputs.terraform-plan-artifact-file }}
         run: |
           terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
           {
@@ -132,18 +130,10 @@ jobs:
           additional-denied-words: ''
 
       - name: Terraform Apply
-        shell: bash
-        working-directory: ${{ inputs.terraform-root }}
-        env:
-          ARM_CLIENT_ID: ${{ inputs.client-id }}
-          ARM_TENANT_ID: ${{ inputs.tenant-id }}
-          ARM_SUBSCRIPTION_ID: ${{ inputs.subscription-id }}
-          ARM_USE_OIDC: "true"
-          ARM_USE_AZUREAD: "true"
-          PLAN_FILE: ${{ inputs.plan-artifact-file != '' && inputs.plan-artifact-file || github.sha }}
-        run: |
-          terraform apply \
-              -lock-timeout=3000s \
-              -auto-approve \
-              -input=false \
-              "$PLAN_FILE"
+        uses: pagopa/ict-github-actions/terraform-apply@798ad514996694a2c40ad79a1feec943ee5293fe # v2.0.0
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-plan-file: ${{ inputs.terraform-plan-artifact-file }}

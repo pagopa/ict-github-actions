@@ -61,9 +61,9 @@ jobs:
       pull-requests: write
 
     outputs:
-      plan-artifact-name: ${{ steps.artifact.outputs.name }}
-      plan-artifact-file: ${{ steps.artifact.outputs.filename }}
-      has-changes: ${{ steps.plan.outputs.exitcode == '2' && 'true' || 'false' }}
+      plan-artifact-name: ${{ steps.artifact.outputs.plan-artifact-name }}
+      plan-artifact-file: ${{ steps.artifact.outputs.plan-artifact-file }}
+      has-changes: ${{ steps.plan.outputs.has-changes }}
 
     steps:
       - name: Checkout
@@ -89,57 +89,23 @@ jobs:
           terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Terraform Plan
+        uses: pagopa/ict-github-actions/terraform-plan@798ad514996694a2c40ad79a1feec943ee5293fe # v2.0.0
         id: plan
         shell: bash
-        working-directory: ${{ inputs.terraform-root }}
-        env:
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_USE_OIDC: "true"
-          ARM_USE_AZUREAD: "true"
-          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
-        run: |
-          # don't fail because exit 2 means ok, plan has changes
-          set +e
-          
-          terraform plan \
-              -var-file="./env/$TERRAFORM_ENVIRONMENT/terraform.tfvars" \
-              -lock=false \
-              -out="tfplan-$TERRAFORM_ENVIRONMENT-${{ github.sha }}" \
-              -detailed-exitcode
-
-      - name: Check plan status
-        if: steps.plan.outputs.exitcode == '1'
-        shell: bash
-        run: exit 1
-
-      - name: Plan artifact output
-        id: artifact
-        if: steps.plan.outputs.exitcode == '2'
-        shell: bash
-        env:
-          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
-        run: |
-          echo "name=tfplan" >> $GITHUB_OUTPUT
-          echo "filename=tfplan-$TERRAFORM_ENVIRONMENT-${{ github.sha }}" >> $GITHUB_OUTPUT
-
-      - name: Upload plan artifact
-        uses: actions/upload-artifact@694cdabd8bdb0f10b2cea11669e1bf5453eed0a6 # v4.2.0
-        if: steps.plan.outputs.exitcode == '2'
         with:
-          name: tfplan
-          path: ${{ inputs.terraform-root }}/${{ steps.artifact.outputs.filename }}
-          if-no-files-found: error
-          retention-days: 7
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
 
       - name: Terraform plan plaintext
         id: plantext
-        if: steps.plan.outputs.exitcode == '2' && github.event_name == 'pull_request'
+        if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
         working-directory: ${{ inputs.terraform-root }}
         shell: bash
         env:
-          ARTIFACT_FILE: ${{ steps.artifact.outputs.filename }}
+          ARTIFACT_FILE: ${{ steps.plan.outputs.plan-artifact-file }}
         run: |
           terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
 
@@ -149,7 +115,7 @@ jobs:
       - name: Post Plan on PR
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         id: comment
-        if: steps.plan.outputs.exitcode == '2' && github.event_name == 'pull_request'
+        if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
         env:
           TERRAFORM_ROOT: ${{ inputs.terraform-root }}
           TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
