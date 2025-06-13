@@ -76,25 +76,6 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Read terraform version
-        id: tf-version
-        shell: bash
-        env:
-          TERRAFORM_VERSION_FILE: ${{ inputs.terraform-version-file }}
-        run: |
-          echo "terraform-version=$(cat "$TERRAFORM_VERSION_FILE")" >> $GITHUB_OUTPUT
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
-        with:
-          terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
-
-      - name: Terraform cache
-        uses: pagopa/ict-github-actions/terraform-cache@81e01d7b8c3302444d389e41f17d283f199ba357
-        with:
-          terraform-root: ${{ inputs.terraform-root }}
-          terraform-env: ${{ inputs.terraform-environment }}
-
       - name: Azure Login
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
         if: inputs.azure-skip-login != 'true'
@@ -104,19 +85,13 @@ jobs:
           client-id: ${{ inputs.client-id }}
 
       - name: Terraform Init
-        shell: bash
-        working-directory: ${{ inputs.terraform-root }}
-        env:
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_USE_OIDC: "true"
-          ARM_USE_AZUREAD: "true"
-          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
-        run: |
-          terraform init \
-              -reconfigure \
-              -backend-config="./env/$TERRAFORM_ENVIRONMENT/backend.tfvars"
+        uses: pagopa/ict-github-actions/terraform-init@da173842951db1726aabb595e1abe2dc2028b069 # v1.9.0
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Download plan artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -124,7 +99,7 @@ jobs:
           name: tfplan
           path: ${{ inputs.terraform-root }}
 
-      - name: Terraform plan plaintext
+      - name: Prettify Terraform plan
         if: inputs.explicit-manual-approvers != ''
         id: plantext
         working-directory: ${{ inputs.terraform-root }}
