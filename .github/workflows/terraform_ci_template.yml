@@ -17,12 +17,15 @@ on:
   workflow_call:
     inputs:
       environment:
+        type: string
         required: true
         description: GitHub environment
       terraform-environment:
+        type: string
         required: true
         description: Terraform environment folder name in which backend config and tfvars are stored
       terraform-root:
+        type: string
         required: true
         description: Root directory of the Terraform script to execute
     secrets:
