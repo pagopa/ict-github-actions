@@ -76,11 +76,10 @@ jobs:
 
       - name: Azure Login
         uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
-        if: inputs.azure-skip-login != 'true'
         with:
-          tenant-id: ${{ inputs.tenant-id }}
-          subscription-id: ${{ inputs.subscription-id }}
-          client-id: ${{ inputs.client-id }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
 
       - name: Terraform Init
         uses: pagopa/ict-github-actions/terraform-init@da173842951db1726aabb595e1abe2dc2028b069 # v1.9.0
