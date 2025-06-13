@@ -79,39 +79,14 @@ jobs:
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
           client-id: ${{ secrets.ARM_CLIENT_ID }}
 
-      - name: Read terraform version
-        id: tf-version
-        shell: bash
-        env:
-          TERRAFORM_VERSION_FILE: ${{ inputs.terraform-version-file }}
-        run: |
-          echo "terraform-version=$(cat $TERRAFORM_VERSION_FILE)" >> $GITHUB_OUTPUT
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3.1.2
+      - name: Terraform Init
+        uses: pagopa/ict-github-actions/terraform-init@da173842951db1726aabb595e1abe2dc2028b069 # v1.9.0
         with:
-          terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
-
-      - name: Terraform cache
-        uses: pagopa/ict-github-actions/terraform-cache@81e01d7b8c3302444d389e41f17d283f199ba357
-        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
           terraform-root: ${{ inputs.terraform-root }}
           terraform-env: ${{ inputs.terraform-environment }}
-
-      - name: Terraform Init
-        shell: bash
-        working-directory: ${{ inputs.terraform-root }}
-        env:
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_USE_OIDC: "true"
-          ARM_USE_AZUREAD: "true"
-          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
-        run: |
-          terraform init \
-              -reconfigure \
-              -backend-config="./env/$TERRAFORM_ENVIRONMENT/backend.tfvars"
 
       - name: Terraform Plan
         id: plan
