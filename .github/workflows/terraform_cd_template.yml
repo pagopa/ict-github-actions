@@ -40,10 +40,10 @@ on:
         type: string
         required: true
         description: File name in the GitHub artifact of the plan to apply
-      apply-manual-approvers:
+      explicit-manual-approvers:
         type: string
         required: false
-        description: Manual approvers for the Apply job, if needed
+        description: Manual approvers needed to proceed to Terraform apply
         default: ''
     secrets:
       ARM_TENANT_ID:
