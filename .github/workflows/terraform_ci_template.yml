@@ -1,0 +1,158 @@
+# Reusable workflow for CI of Terraform workloads on Azure.
+#
+# Prerequisites:
+# - A GitHub environment for the plan job
+# - A Azure managed identity for the plan job.  It has to have
+#   sufficient permission to do what Terraform say, and a federated
+#   credential setup with GitHub OIDC.
+# - Secrets in the GitHub environment for Azure targeting tenant, sub, managed id.
+# 
+# Features:
+# - Login to Azure with managed identity using OIDC federation (no secret)
+# - Post the plan pretty-printed as comment if the originating PR, if any
+
+name: Terraform CI
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+        description: GitHub environment
+      terraform-environment:
+        type: string
+        required: true
+        description: Terraform environment folder name in which backend config and tfvars are stored
+      terraform-root:
+        type: string
+        required: true
+        description: Root directory of the Terraform script to execute
+    secrets:
+      ARM_TENANT_ID:
+        required: true
+        description: Azure Tenant ID
+      ARM_SUBSCRIPTION_ID:
+        required: true
+        description: Azure Subscription ID
+      ARM_CLIENT_ID:
+        required: true
+        description: Azure Client ID of the managed identity that the job will authenticate with
+    outputs:
+      plan-artifact-name:
+        description: Name of the artifact in which the Terraform plan is stored
+        value: ${{ jobs.terraform_plan.outputs.plan-artifact-name }}
+      plan-artifact-file:
+        description: Filename of the plan in the artifact
+        value: ${{ jobs.terraform_plan.outputs.plan-artifact-file }}
+      has-changes:
+        description: Whether the plan has changes to apply
+        value: ${{ jobs.terraform_plan.outputs.has-changes }}
+
+jobs:
+  terraform_plan:
+    name: Terraform Plan
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    outputs:
+      plan-artifact-name: ${{ steps.artifact.outputs.plan-artifact-name }}
+      plan-artifact-file: ${{ steps.artifact.outputs.plan-artifact-file }}
+      has-changes: ${{ steps.plan.outputs.has-changes }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Azure Login
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+
+      - name: Terraform Init
+        uses: pagopa/ict-github-actions/terraform-init@da173842951db1726aabb595e1abe2dc2028b069 # v1.9.0
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-env: ${{ inputs.terraform-environment }}
+
+      - name: Terraform Plan
+        uses: pagopa/ict-github-actions/terraform-plan@798ad514996694a2c40ad79a1feec943ee5293fe # v2.0.0
+        id: plan
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
+
+      - name: Terraform plan plaintext
+        id: plantext
+        if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
+        working-directory: ${{ inputs.terraform-root }}
+        shell: bash
+        env:
+          ARTIFACT_FILE: ${{ steps.plan.outputs.plan-artifact-file }}
+        run: |
+          terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
+
+      # Post the plan output in the PR
+      # The plan output is posted in a comment in the PR
+      # from https://github.com/pagopa/dx/blob/main/.github/workflows/infra_plan.yaml
+      - name: Post Plan on PR
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        id: comment
+        if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
+        env:
+          TERRAFORM_ROOT: ${{ inputs.terraform-root }}
+          TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
+        with:
+          script: |
+            const fs = require('fs');
+            const terraformRoot = process.env.TERRAFORM_ROOT;
+            const terraformEnvironment = process.env.TERRAFORM_ENVIRONMENT;
+            const output = fs.readFileSync(`${terraformRoot}/plan_plain_text.txt`, 'utf8');
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            })
+            const botComment = comments.find(comment => {
+              return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${terraformRoot}') - '${terraformEnvironment}'`)
+            })
+            const commentBody = `#### 📖 Terraform Plan ('${terraformRoot}') - '${terraformEnvironment}'
+            <details>
+            <summary>Terraform Plan</summary>
+
+            \`\`\`hcl
+            ${output}
+            \`\`\`
+
+            </details>
+            `;
+            if (botComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id
+              })
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody,
+              issue_number: context.issue.number
+            })

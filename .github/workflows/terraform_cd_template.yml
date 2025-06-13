@@ -1,0 +1,139 @@
+# Reusable workflow for CD of Terraform workloads on Azure.
+#
+# Prerequisites:
+# - A GitHub environment for the plan job and one for the apply job.
+#   The same environment can be used in both cases if needed.
+# - A Azure managed identity for the plan job and one for the apply job.
+#   It has to have sufficient permission to do what Terraform say, and
+#   a federated credential setup with GitHub OIDC.
+#   The same managed identity can be used in both cases.
+# - Secrets in the GitHub environment for Azure targeting tenant, sub, managed id.
+# 
+# Features:
+# - Login to Azure with managed identity using OIDC federation (no secret)
+# - Direct apply, or
+# - Wait for manual approval with a GitHub issue that shows the exact
+#   plan that will be applied in user-friendly way
+
+name: Terraform CD
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+        description: GitHub environment
+      terraform-environment:
+        type: string
+        required: true
+        description: Terraform environment folder name in which backend config and tfvars are stored
+      terraform-root:
+        type: string
+        required: true
+        description: Root directory of the Terraform script to execute
+      terraform-plan-artifact-name:
+        type: string
+        required: true
+        description: Name of the GitHub artifact where plan to apply is stored. Has to be in terraform-root
+      terraform-plan-artifact-file:
+        type: string
+        required: true
+        description: File name in the GitHub artifact of the plan to apply
+      apply-manual-approvers:
+        type: string
+        required: false
+        description: Manual approvers for the Apply job, if needed
+        default: ''
+    secrets:
+      ARM_TENANT_ID:
+        required: true
+        description: Azure Tenant ID
+      ARM_SUBSCRIPTION_ID:
+        required: true
+        description: Azure Subscription ID
+      ARM_CLIENT_ID:
+        required: true
+        description: Azure Client ID of the managed identity that the job will authenticate with
+
+jobs:
+  terraform_apply:
+    name: Terraform Apply
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
+
+    permissions:
+      id-token: write
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Azure Login
+        uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+        if: inputs.azure-skip-login != 'true'
+        with:
+          tenant-id: ${{ inputs.tenant-id }}
+          subscription-id: ${{ inputs.subscription-id }}
+          client-id: ${{ inputs.client-id }}
+
+      - name: Terraform Init
+        uses: pagopa/ict-github-actions/terraform-init@da173842951db1726aabb595e1abe2dc2028b069 # v1.9.0
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-env: ${{ inputs.terraform-environment }}
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ inputs.terraform-plan-artifact-name }}
+          path: ${{ inputs.terraform-root }}
+
+      - name: Prettify Terraform plan
+        if: inputs.explicit-manual-approvers != ''
+        id: plantext
+        working-directory: ${{ inputs.terraform-root }}
+        shell: bash
+        env:
+          ARTIFACT_FILE: ${{ inputs.terraform-plan-artifact-file }}
+        run: |
+          terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
+          {
+            echo 'plaintext<<EOF'
+            cat plan_plain_text.txt
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Wait for approval
+        if: inputs.explicit-manual-approvers != ''
+        uses: trstringer/manual-approval@662b3ddbc7685f897992051e87e1b4b58c07dc03 # v1
+        with:
+          secret: ${{ github.token }}
+          approvers: ${{ inputs.explicit-manual-approvers }}
+          minimum-approvals: 1
+          issue-title: "Terraform apply ${{ inputs.terraform-environment }}"
+          issue-body: |
+            An approval will allow this plan:
+            ```hcl
+            ${{ steps.plantext.outputs.plaintext }}
+            ```
+          exclude-workflow-initiator-as-approver: false
+          additional-approved-words: ''
+          additional-denied-words: ''
+
+      - name: Terraform Apply
+        uses: pagopa/ict-github-actions/terraform-apply@798ad514996694a2c40ad79a1feec943ee5293fe # v2.0.0
+        with:
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-plan-file: ${{ inputs.terraform-plan-artifact-file }}
