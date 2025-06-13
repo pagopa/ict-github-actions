@@ -19,14 +19,6 @@ on:
         type: string
         required: true
         description: Root directory of the Terraform script to execute
-      terraform-plan-artifact-name:
-        type: string
-        required: true
-        description: Name of the GitHub artifact where plan to apply is stored. Has to be in terraform-root
-      terraform-plan-artifact-file:
-        type: string
-        required: true
-        description: File name in the GitHub artifact of the plan to apply
       explicit-manual-approvers:
         type: string
         required: false
