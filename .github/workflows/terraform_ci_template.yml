@@ -172,9 +172,11 @@ jobs:
         with:
           env:
             TERRAFORM_ROOT: ${{ inputs.terraform-root }}
+            TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
           script: |
             const fs = require('fs');
             const terraformRoot = process.env.TERRAFORM_ROOT;
+            const terraformEnvironment = process.env.TERRAFORM_ENVIRONMENT;
             const output = fs.readFileSync(`${terraformRoot}/plan_plain_text.txt`, 'utf8');
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -182,9 +184,9 @@ jobs:
               issue_number: context.issue.number
             })
             const botComment = comments.find(comment => {
-              return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-environment }}'`)
+              return comment.user.type === 'Bot' && comment.body.includes(`Terraform Plan ('${terraformRoot}') - '${terraformEnvironment}'`)
             })
-            const commentBody = `#### 📖 Terraform Plan ('${{ inputs.terraform-root }}') - '${{ inputs.terraform-environment }}'
+            const commentBody = `#### 📖 Terraform Plan ('${terraformRoot}') - '${terraformEnvironment}'
             <details>
             <summary>Terraform Plan</summary>
 
