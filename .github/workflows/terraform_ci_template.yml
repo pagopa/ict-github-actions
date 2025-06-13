@@ -168,9 +168,12 @@ jobs:
         id: comment
         if: steps.plan.outputs.exitcode == '2' && github.event_name == 'pull_request'
         with:
+          env:
+            TERRAFORM_ROOT: ${{ inputs.terraform-root }}
           script: |
             const fs = require('fs');
-            const output = fs.readFileSync('${{ inputs.terraform-root }}/plan_plain_text.txt', 'utf8');
+            const terraformRoot = process.env.TERRAFORM_ROOT;
+            const output = fs.readFileSync(`${terraformRoot}/plan_plain_text.txt`, 'utf8');
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
