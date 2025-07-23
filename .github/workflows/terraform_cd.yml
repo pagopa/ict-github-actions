@@ -1,4 +1,4 @@
-name: terraform
+name: Terraform CD
 
 on:
   workflow_call:
@@ -33,6 +33,7 @@ on:
 
 jobs:
   plan:
+    name: Plan
     runs-on: ubuntu-24.04
     environment: ${{ inputs.environment }}
 
@@ -80,6 +81,7 @@ jobs:
           terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
 
   apply:
+    name: Apply
     runs-on: ubuntu-24.04
     environment: ${{ inputs.environment }}
     needs: plan
