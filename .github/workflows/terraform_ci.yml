@@ -25,16 +25,6 @@ on:
       ARM_CLIENT_ID:
         required: true
         description: Azure Client ID of the managed identity that the job will authenticate with
-    outputs:
-      plan-artifact-name:
-        description: Name of the artifact in which the Terraform plan is stored
-        value: ${{ jobs.terraform_plan.outputs.plan-artifact-name }}
-      plan-artifact-file:
-        description: Filename of the plan in the artifact
-        value: ${{ jobs.terraform_plan.outputs.plan-artifact-file }}
-      has-changes:
-        description: Whether the plan has changes to apply
-        value: ${{ jobs.terraform_plan.outputs.has-changes }}
 
 jobs:
   plan:
