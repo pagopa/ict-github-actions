@@ -30,7 +30,7 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-24.04
-    environment: ${{ inputs.environment-plan }}
+    environment: ${{ inputs.environment }}
 
     permissions:
       id-token: write
