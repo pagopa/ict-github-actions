@@ -6,10 +6,14 @@ inputs:
     required: false
     description: Path of the folder where the script is found
     default: '.'
+  cwd:
+    required: false
+    description: Path of the folder where the script is executed
+    default: '.'
   python-version-file:
     required: false
     description: Path of the python version file
-    default: '.python-version'
+    default: ''
   command:
     required: true
     description: Script to launch
@@ -17,17 +21,35 @@ inputs:
     required: false
     description: Arguments of the script
     default: ''
+  architecture:
+    required: false
+    description: Target architecture
+    default: 'x64'
 
 runs:
   using: composite
 
   steps:
+    - name: Get Python version file
+      shell: bash
+      id: versfile
+      env:
+        PYTHON_VERSION_FILE: ${{ inputs.python-version-file }}
+        CONTEXT: ${{ inputs.context }}
+      run: |
+        if [ -n "$PYTHON_VERSION_FILE" ]; then
+          PY_VERS_FILE="$PYTHON_VERSION_FILE"
+        else
+          PY_VERS_FILE="$CONTEXT/.python-version"
+        fi
+        echo "py-vers-file=$PY_VERS_FILE" >> $GITHUB_OUTPUT
+
     - name: Set up Python
       uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
       with:
-        python-version-file: '.python-version'
+        python-version-file: ${{ steps.versfile.outputs.py-vers-file }}
         cache: 'pipenv'
-        architecture: 'x64'
+        architecture: ${{ inputs.architecture }}
   
     - name: Install dependencies
       shell: bash
@@ -38,5 +60,12 @@ runs:
   
     - name: Run Python script
       shell: bash
+      env:
+        CONTEXT: ${{ inputs.context }}
+        COMMAND: ${{ inputs.command }}
+        COMMAND_ARGS: ${{ inputs.command-args }}
+        CWD: ${{ inputs.cwd }}
       run: |
-        python ${{ inputs.context }}/${{ inputs.command }} ${{ inputs.command-args }}
+        script_path=$(realpath $CONTEXT/$COMMAND)
+        cd $CWD
+        python $script_path $COMMAND_ARGS
