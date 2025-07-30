@@ -1,16 +1,3 @@
-# Reusable workflow for CI of Terraform workloads on Azure.
-#
-# Prerequisites:
-# - A GitHub environment for the plan job
-# - A Azure managed identity for the plan job.  It has to have
-#   sufficient permission to do what Terraform say, and a federated
-#   credential setup with GitHub OIDC.
-# - Secrets in the GitHub environment for Azure targeting tenant, sub, managed id.
-# 
-# Features:
-# - Login to Azure with managed identity using OIDC federation (no secret)
-# - Post the plan pretty-printed as comment if the originating PR, if any
-
 name: Terraform CI
 
 on:
@@ -38,20 +25,10 @@ on:
       ARM_CLIENT_ID:
         required: true
         description: Azure Client ID of the managed identity that the job will authenticate with
-    outputs:
-      plan-artifact-name:
-        description: Name of the artifact in which the Terraform plan is stored
-        value: ${{ jobs.terraform_plan.outputs.plan-artifact-name }}
-      plan-artifact-file:
-        description: Filename of the plan in the artifact
-        value: ${{ jobs.terraform_plan.outputs.plan-artifact-file }}
-      has-changes:
-        description: Whether the plan has changes to apply
-        value: ${{ jobs.terraform_plan.outputs.has-changes }}
 
 jobs:
-  terraform_plan:
-    name: Terraform Plan
+  plan:
+    name: Plan
     runs-on: ubuntu-24.04
     environment: ${{ inputs.environment }}
 
@@ -98,15 +75,13 @@ jobs:
           terraform-root: ${{ inputs.terraform-root }}
           terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
 
-      - name: Terraform plan plaintext
+      - name: Terraform Plan to plaintext
         id: plantext
         if: steps.plan.outputs.has-changes == 'true' && github.event_name == 'pull_request'
-        working-directory: ${{ inputs.terraform-root }}
-        shell: bash
-        env:
-          ARTIFACT_FILE: ${{ steps.plan.outputs.plan-artifact-file }}
-        run: |
-          terraform show -no-color "$ARTIFACT_FILE" > plan_plain_text.txt
+        uses: pagopa/ict-github-actions/terraform-prettify-plan@e052e5f3e4d64061ba9c731018494722dad02241 # v2.1.0
+        with:
+          terraform-root: ${{ inputs.terraform-root }}
+          terraform-plan-file: ${{ steps.plan.outputs.plan-artifact-file }}
 
       # Post the plan output in the PR
       # The plan output is posted in a comment in the PR
@@ -118,12 +93,13 @@ jobs:
         env:
           TERRAFORM_ROOT: ${{ inputs.terraform-root }}
           TERRAFORM_ENVIRONMENT: ${{ inputs.terraform-environment }}
+          TERRAFORM_PLAN_PLAINTEXT: ${{ steps.plantext.outputs.plan-prettified }}
         with:
           script: |
             const fs = require('fs');
             const terraformRoot = process.env.TERRAFORM_ROOT;
             const terraformEnvironment = process.env.TERRAFORM_ENVIRONMENT;
-            const output = fs.readFileSync(`${terraformRoot}/plan_plain_text.txt`, 'utf8');
+            const output = process.env.TERRAFORM_PLAN_PLAINTEXT;
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
