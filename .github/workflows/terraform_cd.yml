@@ -126,7 +126,7 @@ jobs:
         uses: pagopa/ict-github-actions/terraform-prettify-plan@e052e5f3e4d64061ba9c731018494722dad02241 # v2.1.0
         with:
           terraform-root: ${{ inputs.terraform-root }}
-          terraform-plan-file: ${{ steps.plan.outputs.plan-artifact-file }}
+          terraform-plan-file: ${{ needs.plan.outputs.plan-artifact-file }}
 
       - name: Wait for approval
         if: inputs.explicit-manual-approvers != ''
