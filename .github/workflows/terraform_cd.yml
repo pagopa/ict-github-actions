@@ -20,6 +20,11 @@ on:
         required: false
         description: Manual approvers needed to proceed to Terraform apply
         default: ''
+      approval-issue-title:
+        type: string
+        required: false
+        description: Title of the approval issue in case of manual approvers
+        default: ''
     secrets:
       ARM_TENANT_ID:
         required: true
@@ -135,7 +140,7 @@ jobs:
           secret: ${{ github.token }}
           approvers: ${{ inputs.explicit-manual-approvers }}
           minimum-approvals: 1
-          issue-title: "Terraform apply ${{ inputs.terraform-environment }}"
+          issue-title: ${{ inputs.approval-issue-title != '' && inputs.approval-issue-title || 'Terraform apply ' + inputs.terraform-root + ' (' + inputs.terraform-environment + ')' }}
           issue-body: |
             An approval will allow this plan:
             ```hcl
