@@ -1,5 +1,5 @@
 name: Run Python script
-description: "Run Python script with Pipenv managed dependencies"
+description: "Run Python script with Poetry managed dependencies"
 
 inputs:
   context:
@@ -44,28 +44,28 @@ runs:
         fi
         echo "py-vers-file=$PY_VERS_FILE" >> $GITHUB_OUTPUT
 
+    - name: Install Poetry
+      shell: bash
+      run: pipx install poetry
+
     - name: Set up Python
-      uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+      uses: actions/setup-python@v6
       with:
         python-version-file: ${{ steps.versfile.outputs.py-vers-file }}
-        cache: 'pipenv'
+        cache: 'poetry'
         architecture: ${{ inputs.architecture }}
   
     - name: Install dependencies
       shell: bash
       working-directory: ${{ inputs.context }}
-      run: |
-        python -m pip install --upgrade pipenv wheel
-        pipenv install --system --deploy --ignore-pipfile
+      run: poetry install
   
     - name: Run Python script
       shell: bash
       env:
+        CWD: ${{ inputs.cwd }}
         CONTEXT: ${{ inputs.context }}
         COMMAND: ${{ inputs.command }}
-        COMMAND_ARGS: ${{ inputs.command-args }}
-        CWD: ${{ inputs.cwd }}
       run: |
-        script_path=$(realpath $CONTEXT/$COMMAND)
         cd $CWD
-        python $script_path $COMMAND_ARGS
+        poetry run -P $CONTEXT $COMMAND
