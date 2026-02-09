@@ -3,10 +3,14 @@ name: Terraform CD
 on:
   workflow_call:
     inputs:
-      environment:
+      environment-plan:
         type: string
         required: true
-        description: GitHub environment
+        description: GitHub environment for plan
+      environment-apply:
+        type: string
+        required: true
+        description: GitHub environment for apply
       terraform-environment:
         type: string
         required: true
@@ -15,16 +19,6 @@ on:
         type: string
         required: true
         description: Root directory of the Terraform script to execute
-      explicit-manual-approvers:
-        type: string
-        required: false
-        description: Manual approvers needed to proceed to Terraform apply
-        default: ''
-      approval-issue-title:
-        type: string
-        required: false
-        description: Title of the approval issue in case of manual approvers
-        default: 'Terraform apply'
     secrets:
       ARM_TENANT_ID:
         required: true
@@ -40,7 +34,7 @@ jobs:
   plan:
     name: Plan
     runs-on: ubuntu-24.04
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment-plan }}
 
     permissions:
       id-token: write
@@ -76,7 +70,7 @@ jobs:
           terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Terraform Plan
-        uses: pagopa/ict-github-actions/terraform-plan@798ad514996694a2c40ad79a1feec943ee5293fe # v2.0.0
+        uses: pagopa/ict-github-actions/terraform-plan@main
         id: plan
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
@@ -88,7 +82,7 @@ jobs:
   apply:
     name: Apply
     runs-on: ubuntu-24.04
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.environment-apply }}
     needs: plan
     if: needs.plan.outputs.has-changes == 'true'
 
@@ -120,35 +114,11 @@ jobs:
           terraform-root: ${{ inputs.terraform-root }}
           terraform-env: ${{ inputs.terraform-environment }}
 
-      - name: Download plan artifact
+      - name: Download Plan Artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ${{ needs.plan.outputs.plan-artifact-name }}
           path: ${{ inputs.terraform-root }}
-
-      - name: Terraform Plan to plaintext
-        id: plantext
-        uses: pagopa/ict-github-actions/terraform-prettify-plan@e052e5f3e4d64061ba9c731018494722dad02241 # v2.1.0
-        with:
-          terraform-root: ${{ inputs.terraform-root }}
-          terraform-plan-file: ${{ needs.plan.outputs.plan-artifact-file }}
-
-      - name: Wait for approval
-        if: inputs.explicit-manual-approvers != ''
-        uses: trstringer/manual-approval@9f5e5d6bc511762e17f849775a3c56bdea6b4493 # v1.11.0
-        with:
-          secret: ${{ github.token }}
-          approvers: ${{ inputs.explicit-manual-approvers }}
-          minimum-approvals: 1
-          issue-title: ${{ inputs.approval-issue-title }}
-          issue-body: |
-            An approval will allow this plan:
-            ```hcl
-            ${{ steps.plantext.outputs.plan-prettified }}
-            ```
-          exclude-workflow-initiator-as-approver: false
-          additional-approved-words: ''
-          additional-denied-words: ''
 
       - name: Terraform Apply
         uses: pagopa/ict-github-actions/terraform-apply@798ad514996694a2c40ad79a1feec943ee5293fe # v2.0.0
