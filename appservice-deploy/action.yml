@@ -33,6 +33,22 @@ inputs:
     required: false
     description: Name of the staging slot
     default: staging
+  staging-check-enabled:
+    required: false
+    description: Enable health check on staging slot before swapping
+    default: 'false'
+  staging-check-endpoint:
+    required: false
+    description: Endpoint to check on the staging slot
+    default: /
+  staging-check-retries:
+    required: false
+    description: Number of retries for the health check
+    default: '5'
+  staging-check-delay:
+    required: false
+    description: Delay between retries for the health check
+    default: '10'
 
 runs:
   using: composite
@@ -61,6 +77,23 @@ runs:
         images: ${{ inputs.image }}
         slot-name: ${{ inputs.staging-slot-name }}
   
+    - name: Run Health Check on Staging Slot
+      if: inputs.direct-deploy-to-prod != 'true' && inputs.staging-check-enabled == 'true'
+      shell: bash
+      env:
+        APP_NAME: ${{ inputs.app-name }}
+        SLOT_NAME: ${{ inputs.staging-slot-name }}
+        ENDPOINT: ${{ inputs.staging-check-endpoint }}
+        RETRIES: ${{ inputs.staging-check-retries }}
+        DELAY: ${{ inputs.staging-check-delay }}
+      run: |
+        curl --fail \
+          --retry $RETRIES \
+          --retry-delay $DELAY \
+          --retry-all-errors \
+          -s -o /dev/null -w "Health check success! Status: %{http_code}\n" \
+          "https://${APP_NAME}-${SLOT_NAME}.azurewebsites.net${ENDPOINT}"
+
     - name: Swap Staging and Production Slots
       shell: bash
       if: inputs.direct-deploy-to-prod != 'true'
