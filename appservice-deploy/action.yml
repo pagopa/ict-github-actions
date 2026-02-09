@@ -41,10 +41,6 @@ inputs:
     required: false
     description: Endpoint to check on the staging slot
     default: /
-  staging-check-match:
-    required: false
-    description: String to match in the response from the health check endpoint
-    default: ''
   staging-check-retries:
     required: false
     description: Number of retries for the health check
@@ -82,59 +78,21 @@ runs:
         slot-name: ${{ inputs.staging-slot-name }}
   
     - name: Run Health Check on Staging Slot
-      if: inputs.staging-check-enabled == 'true'
+      if: inputs.direct-deploy-to-prod != 'true' && inputs.staging-check-enabled == 'true'
       shell: bash
       env:
         APP_NAME: ${{ inputs.app-name }}
         SLOT_NAME: ${{ inputs.staging-slot-name }}
         ENDPOINT: ${{ inputs.staging-check-endpoint }}
-        MATCH_STRING: ${{ inputs.staging-check-match }}
         RETRIES: ${{ inputs.staging-check-retries }}
         DELAY: ${{ inputs.staging-check-delay }}
       run: |
-        echo "Health check enabled, running on staging slot..."
-
-        # Get staging slot hostname
-        URL="https://${APP_NAME}-${SLOT_NAME}.azurewebsites.net${ENDPOINT}"
-
-        echo "Checking URL: $URL"
-
-        for i in $(seq 1 "$RETRIES"); do
-          echo "Attempt $i of $RETRIES..."
-
-          # Perform curl and capture status code and body
-          RESPONSE=$(curl -s -w "%{http_code}" "$URL")
-          HTTP_STATUS=$(tail -n1 <<< "$RESPONSE")
-          BODY=$(sed '$ d' <<< "$RESPONSE")
-
-          echo "HTTP status: $HTTP_STATUS"
-
-          # Check for 2xx status code
-          if [[ "$HTTP_STATUS" -ge 200 && "$HTTP_STATUS" -lt 300 ]]; then
-            # If a match string is provided, check for it in the body
-            if [ -n "$MATCH_STRING" ]; then
-              if [[ "$BODY" == *"$MATCH_STRING"* ]]; then
-                echo "Health check passed. Found match string."
-                exit 0
-              else
-                echo "Health check failed. Match string not found in response: $BODY"
-              fi
-            else
-              echo "Health check passed."
-              exit 0
-            fi
-          else
-            echo "Health check failed with status: $HTTP_STATUS"
-          fi
-
-          if [ "$i" -lt "$RETRIES" ]; then
-            echo "Waiting $DELAY seconds before next attempt..."
-            sleep "$DELAY"
-          fi
-        done
-
-        echo "::error::Health check failed after $RETRIES attempts."
-        exit 1
+        curl --fail \
+          --retry $RETRIES \
+          --retry-delay $DELAY \
+          --retry-all-errors \
+          -s -o /dev/null -w "Health check success! Status: %{http_code}\n" \
+          "https://${APP_NAME}-${SLOT_NAME}.azurewebsites.net${ENDPOINT}"
 
     - name: Swap Staging and Production Slots
       shell: bash
