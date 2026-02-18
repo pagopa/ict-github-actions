@@ -70,7 +70,7 @@ jobs:
           terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Terraform Plan
-        uses: pagopa/ict-github-actions/terraform-plan@main
+        uses: pagopa/ict-github-actions/terraform-plan@754079806bad5a21443a8be19ad3ef92f620d76e # v5.2.0
         id: plan
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
