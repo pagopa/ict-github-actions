@@ -38,7 +38,6 @@ jobs:
 
     permissions:
       contents: write
-      issues: write
       packages: write
   
     outputs:
