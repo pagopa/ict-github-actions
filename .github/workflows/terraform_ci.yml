@@ -15,10 +15,6 @@ on:
         type: string
         required: true
         description: Root directory of the Terraform script to execute
-      terraform-plan-encryption-cert:
-        type: string
-        required: true
-        description: PEM certificate (public key) used to encrypt the Terraform plan artifact
     secrets:
       ARM_TENANT_ID:
         required: true
@@ -29,6 +25,9 @@ on:
       ARM_CLIENT_ID:
         required: true
         description: Azure Client ID of the managed identity that the job will authenticate with
+      TERRAFORM_PLAN_CERT:
+        required: true
+        description: PEM certificate (public key) used to encrypt the Terraform plan artifact
 
 jobs:
   plan:
@@ -70,7 +69,7 @@ jobs:
           terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Terraform Plan
-        uses: pagopa/ict-github-actions/terraform-plan@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
+        uses: pagopa/ict-github-actions/terraform-plan@asymmetric-encryption
         id: plan
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
@@ -78,7 +77,7 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           terraform-root: ${{ inputs.terraform-root }}
           terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
-          terraform-plan-encryption-cert: ${{ inputs.terraform-plan-encryption-cert }}
+          terraform-plan-encryption-cert: ${{ secrets.TERRAFORM_PLAN_CERT }}
 
       - name: Terraform Plan to plaintext
         id: plantext

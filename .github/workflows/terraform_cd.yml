@@ -19,10 +19,6 @@ on:
         type: string
         required: true
         description: Root directory of the Terraform script to execute
-      terraform-plan-encryption-cert:
-        type: string
-        required: true
-        description: PEM certificate (public key) used to encrypt the Terraform plan artifact
     secrets:
       ARM_TENANT_ID:
         required: true
@@ -33,7 +29,10 @@ on:
       ARM_CLIENT_ID:
         required: true
         description: Azure Client ID of the managed identity that the job will authenticate with
-      TERRAFORM_PLAN_DECRYPTION_KEY:
+      TERRAFORM_PLAN_CERT:
+        required: true
+        description: PEM certificate (public key) used to encrypt the Terraform plan artifact
+      TERRAFORM_PLAN_PRIVATE_KEY:
         required: true
         description: PEM private key used to decrypt the Terraform plan artifact (store it only in the apply environment)
 
@@ -77,7 +76,7 @@ jobs:
           terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Terraform Plan
-        uses: pagopa/ict-github-actions/terraform-plan@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
+        uses: pagopa/ict-github-actions/terraform-plan@asymmetric-encryption
         id: plan
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
@@ -85,7 +84,7 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           terraform-root: ${{ inputs.terraform-root }}
           terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
-          terraform-plan-encryption-cert: ${{ inputs.terraform-plan-encryption-cert }}
+          terraform-plan-encryption-cert: ${{ secrets.TERRAFORM_PLAN_CERT }}
 
   apply:
     name: Apply
@@ -129,10 +128,10 @@ jobs:
 
       - name: Decrypt plan artifact
         env:
-          DECRYPTION_KEY: ${{ secrets.TERRAFORM_PLAN_DECRYPTION_KEY }}
+          DECRYPTION_KEY: ${{ secrets.TERRAFORM_PLAN_PRIVATE_KEY }}
           PLAN_PATH: ${{ inputs.terraform-root }}/${{ needs.plan.outputs.plan-artifact-file }}
         run: |
-          [ -n "$DECRYPTION_KEY" ] || { echo "::error::TERRAFORM_PLAN_DECRYPTION_KEY is empty"; exit 1; }
+          [ -n "$DECRYPTION_KEY" ] || { echo "::error::TERRAFORM_PLAN_PRIVATE_KEY is empty"; exit 1; }
           KEY_FILE="$RUNNER_TEMP/terraform-plan-key.pem"
           trap 'rm -f "$KEY_FILE"' EXIT
           (umask 077 && printf '%s\n' "$DECRYPTION_KEY" > "$KEY_FILE")
