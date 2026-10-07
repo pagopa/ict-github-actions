@@ -64,7 +64,7 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
 
       - name: Terraform Init
-        uses: pagopa/ict-github-actions/terraform-init@546e73d4f4ba0d94971a6c66f8ebee6cfa208b51 # v5.2.4
+        uses: pagopa/ict-github-actions/terraform-init@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
@@ -73,7 +73,7 @@ jobs:
           terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Terraform Plan
-        uses: pagopa/ict-github-actions/terraform-plan@546e73d4f4ba0d94971a6c66f8ebee6cfa208b51 # v5.2.4
+        uses: pagopa/ict-github-actions/terraform-plan@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
         id: plan
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
@@ -109,7 +109,7 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
 
       - name: Terraform Init
-        uses: pagopa/ict-github-actions/terraform-init@546e73d4f4ba0d94971a6c66f8ebee6cfa208b51 # v5.2.4
+        uses: pagopa/ict-github-actions/terraform-init@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
@@ -135,7 +135,7 @@ jobs:
             -o "$PLAN_PATH" "$PLAN_PATH.gpg" <<< "$SECRET_KEY"
 
       - name: Terraform Apply
-        uses: pagopa/ict-github-actions/terraform-apply@546e73d4f4ba0d94971a6c66f8ebee6cfa208b51 # v5.2.4
+        uses: pagopa/ict-github-actions/terraform-apply@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}

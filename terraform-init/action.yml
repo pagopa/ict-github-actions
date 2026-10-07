@@ -40,7 +40,7 @@ runs:
         terraform_version: ${{ steps.tf-version.outputs.terraform-version }}
 
     - name: Terraform cache
-      uses: pagopa/ict-github-actions/terraform-cache@546e73d4f4ba0d94971a6c66f8ebee6cfa208b51 # v5.2.4
+      uses: pagopa/ict-github-actions/terraform-cache@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
       with:
         terraform-root: ${{ inputs.terraform-root }}
         terraform-env: ${{ inputs.terraform-env }}

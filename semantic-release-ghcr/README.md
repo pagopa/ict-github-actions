@@ -39,5 +39,5 @@ jobs:
           fetch-depth: 0
 
       - name: Release
-        uses: pagopa/ict-github-actions/semantic-release-ghcr@<commitsha>
+        uses: pagopa/ict-github-actions/semantic-release-ghcr@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
 ```

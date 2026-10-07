@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy
-        uses: pagopa/ict-github-actions/functionapp-python-deploy@<commitsha>
+        uses: pagopa/ict-github-actions/functionapp-python-deploy@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
