@@ -69,7 +69,7 @@ jobs:
           terraform-env: ${{ inputs.terraform-environment }}
 
       - name: Terraform Plan
-        uses: pagopa/ict-github-actions/terraform-plan@asymmetric-encryption
+        uses: pagopa/ict-github-actions/terraform-plan@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
         id: plan
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
