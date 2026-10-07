@@ -53,7 +53,7 @@ jobs:
           fetch-depth: 0
 
       - name: Release
-        uses: pagopa/ict-github-actions/semantic-release-ghcr@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
+        uses: pagopa/ict-github-actions/semantic-release-ghcr@0afcfeaeaa10de8a0a841fe578c3e5a2a924dff3 # v7.0.0
         
   deploy-dev:
     name: Deploy Dev
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Deploy
-        uses: pagopa/ict-github-actions/appservice-deploy@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
+        uses: pagopa/ict-github-actions/appservice-deploy@0afcfeaeaa10de8a0a841fe578c3e5a2a924dff3 # v7.0.0
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Deploy
-        uses: pagopa/ict-github-actions/appservice-deploy@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0
+        uses: pagopa/ict-github-actions/appservice-deploy@0afcfeaeaa10de8a0a841fe578c3e5a2a924dff3 # v7.0.0
         with:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
