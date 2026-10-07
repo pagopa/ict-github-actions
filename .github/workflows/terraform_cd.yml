@@ -29,9 +29,12 @@ on:
       ARM_CLIENT_ID:
         required: true
         description: Azure Client ID of the managed identity that the job will authenticate with
-      TERRAFORM_PLAN_ENCRYPTION_KEY:
+      TERRAFORM_PLAN_CERT:
         required: true
-        description: Passphrase used to encrypt the Terraform plan artifact
+        description: PEM certificate (public key) used to encrypt the Terraform plan artifact
+      TERRAFORM_PLAN_PRIVATE_KEY:
+        required: true
+        description: PEM private key used to decrypt the Terraform plan artifact (store it only in the apply environment)
 
 jobs:
   plan:
@@ -81,7 +84,7 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           terraform-root: ${{ inputs.terraform-root }}
           terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
-          terraform-plan-encryption-key: ${{ secrets.TERRAFORM_PLAN_ENCRYPTION_KEY }}
+          terraform-plan-encryption-cert: ${{ secrets.TERRAFORM_PLAN_CERT }}
 
   apply:
     name: Apply
@@ -125,14 +128,17 @@ jobs:
 
       - name: Decrypt plan artifact
         env:
-          SECRET_KEY: ${{ secrets.TERRAFORM_PLAN_ENCRYPTION_KEY }}
+          DECRYPTION_KEY: ${{ secrets.TERRAFORM_PLAN_PRIVATE_KEY }}
           PLAN_PATH: ${{ inputs.terraform-root }}/${{ needs.plan.outputs.plan-artifact-file }}
         run: |
-          [ -n "$SECRET_KEY" ] || { echo "::error::TERRAFORM_PLAN_ENCRYPTION_KEY is empty"; exit 1; }
-          gpg --decrypt \
-            --batch --yes --pinentry-mode loopback \
-            --passphrase-fd 0 \
-            -o "$PLAN_PATH" "$PLAN_PATH.gpg" <<< "$SECRET_KEY"
+          [ -n "$DECRYPTION_KEY" ] || { echo "::error::TERRAFORM_PLAN_PRIVATE_KEY is empty"; exit 1; }
+          KEY_FILE="$RUNNER_TEMP/terraform-plan-key.pem"
+          trap 'rm -f "$KEY_FILE"' EXIT
+          (umask 077 && printf '%s\n' "$DECRYPTION_KEY" > "$KEY_FILE")
+          openssl cms -decrypt -binary \
+            -inform DER -in "$PLAN_PATH.enc" \
+            -inkey "$KEY_FILE" \
+            -out "$PLAN_PATH"
 
       - name: Terraform Apply
         uses: pagopa/ict-github-actions/terraform-apply@8b93d7ff9690abcadaff6a519dc814b2bed093c8 # v6.0.0

@@ -25,9 +25,9 @@ on:
       ARM_CLIENT_ID:
         required: true
         description: Azure Client ID of the managed identity that the job will authenticate with
-      TERRAFORM_PLAN_ENCRYPTION_KEY:
+      TERRAFORM_PLAN_CERT:
         required: true
-        description: Passphrase used to encrypt the Terraform plan artifact
+        description: PEM certificate (public key) used to encrypt the Terraform plan artifact
 
 jobs:
   plan:
@@ -77,7 +77,7 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           terraform-root: ${{ inputs.terraform-root }}
           terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
-          terraform-plan-encryption-key: ${{ secrets.TERRAFORM_PLAN_ENCRYPTION_KEY }}
+          terraform-plan-encryption-cert: ${{ secrets.TERRAFORM_PLAN_CERT }}
 
       - name: Terraform Plan to plaintext
         id: plantext
