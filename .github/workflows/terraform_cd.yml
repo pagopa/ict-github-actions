@@ -29,6 +29,9 @@ on:
       ARM_CLIENT_ID:
         required: true
         description: Azure Client ID of the managed identity that the job will authenticate with
+      TERRAFORM_PLAN_ENCRYPTION_KEY:
+        required: true
+        description: Passphrase used to encrypt the Terraform plan artifact
 
 jobs:
   plan:
@@ -78,6 +81,7 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           terraform-root: ${{ inputs.terraform-root }}
           terraform-tfvars-file: env/${{ inputs.terraform-environment }}/terraform.tfvars
+          terraform-plan-encryption-key: ${{ secrets.TERRAFORM_PLAN_ENCRYPTION_KEY }}
 
   apply:
     name: Apply
@@ -118,6 +122,17 @@ jobs:
         with:
           name: ${{ needs.plan.outputs.plan-artifact-name }}
           path: ${{ inputs.terraform-root }}
+
+      - name: Decrypt plan artifact
+        env:
+          SECRET_KEY: ${{ secrets.TERRAFORM_PLAN_ENCRYPTION_KEY }}
+          PLAN_PATH: ${{ inputs.terraform-root }}/${{ needs.plan.outputs.plan-artifact-file }}
+        run: |
+          [ -n "$SECRET_KEY" ] || { echo "::error::TERRAFORM_PLAN_ENCRYPTION_KEY is empty"; exit 1; }
+          gpg --decrypt \
+            --batch --yes --pinentry-mode loopback \
+            --passphrase-fd 0 \
+            -o "$PLAN_PATH" "$PLAN_PATH.gpg" <<< "$SECRET_KEY"
 
       - name: Terraform Apply
         uses: pagopa/ict-github-actions/terraform-apply@546e73d4f4ba0d94971a6c66f8ebee6cfa208b51 # v5.2.4
