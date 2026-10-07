@@ -81,7 +81,7 @@ runs:
     - name: Terraform Plan to plaintext
       if: steps.plan.outputs.exitcode == '2'
       id: plantext
-      uses: pagopa/ict-github-actions/terraform-prettify-plan@e052e5f3e4d64061ba9c731018494722dad02241 # v2.1.0
+      uses: pagopa/ict-github-actions/terraform-prettify-plan@546e73d4f4ba0d94971a6c66f8ebee6cfa208b51 # v5.2.4
       with:
         terraform-root: ${{ inputs.terraform-root }}
         terraform-plan-file: ${{ steps.artifact.outputs.filename }}
