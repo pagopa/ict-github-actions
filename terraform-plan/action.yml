@@ -42,7 +42,7 @@ runs:
       env:
         TFPLAN_FILE: tfplan-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
       run: |
-        echo "name=$TFPLAN_FILE" >> $GITHUB_OUTPUT
+        echo "name=encrypted-$TFPLAN_FILE" >> $GITHUB_OUTPUT
         echo "filename=$TFPLAN_FILE" >> $GITHUB_OUTPUT
 
     - name: Terraform Plan
