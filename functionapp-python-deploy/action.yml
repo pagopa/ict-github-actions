@@ -28,14 +28,14 @@ runs:
   using: composite
   steps:
     - name: Login via Azure CLI
-      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+      uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
       with:
         tenant-id: ${{ inputs.tenant-id }}
         subscription-id: ${{ inputs.subscription-id }}
         client-id: ${{ inputs.client-id }}
 
     - name: Setup Python
-      uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
       with:
         python-version-file: ${{ inputs.python-version-file }}
         cache: 'pip'
@@ -49,7 +49,7 @@ runs:
         pip install -r requirements.txt --target=".python_packages/lib/site-packages"
 
     - name: Deploy function app
-      uses: Azure/functions-action@fd80521afbba9a2a76a99ba1acc07aff8d733d11 # v1.5.2
+      uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656 # v1.5.7
       with:
         app-name: ${{ inputs.app-name }}
         package: ${{ inputs.package }}

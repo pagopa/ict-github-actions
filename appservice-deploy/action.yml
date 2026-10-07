@@ -54,14 +54,14 @@ runs:
   using: composite
   steps:
     - name: Azure Login
-      uses: azure/login@a65d910e8af852a8061c627c456678983e180302 # v2.2.0
+      uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
       with:
         tenant-id: ${{ inputs.tenant-id }}
         subscription-id: ${{ inputs.subscription-id }}
         client-id: ${{ inputs.client-id }}
   
     - name: Deploy
-      uses: azure/webapps-deploy@de617f46172a906d0617bb0e50d81e9e3aec24c8 # v3.0.1
+      uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
       if: inputs.direct-deploy-to-prod == 'true'
       with:
         resource-group-name: ${{ inputs.resource-group-name }}
@@ -69,7 +69,7 @@ runs:
         images: ${{ inputs.image }}
 
     - name: Deploy to Staging Slot
-      uses: azure/webapps-deploy@de617f46172a906d0617bb0e50d81e9e3aec24c8 # v3.0.1
+      uses: azure/webapps-deploy@02a81bead70021f5284939794bcec79c271ab383 # v3.0.8
       if: inputs.direct-deploy-to-prod != 'true'
       with:
         resource-group-name: ${{ inputs.resource-group-name }}
